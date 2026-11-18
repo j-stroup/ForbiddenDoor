@@ -35,11 +35,16 @@ type
   end;
 
 const
-  WEAPONS: array[1..4] of TItem = (
-    (Name: 'Rusty Dagger';       StatBonus: 2;  Cost: 0),
-    (Name: 'Iron Shortsword';    StatBonus: 5;  Cost: 50),
-    (Name: 'Steel Broadsword';   StatBonus: 10; Cost: 150),
-    (Name: 'Ashen Greatsword';   StatBonus: 18; Cost: 400)
+  WEAPONS: array[1..9] of TItem = (
+    (Name: 'Rusty Dagger';         StatBonus: 2;  Cost: 0),
+    (Name: 'Steel Fist';           StatBonus: 4;  Cost: 40),
+    (Name: 'Iron Shortsword';      StatBonus: 5;  Cost: 50),
+    (Name: 'Steel Broadsword';     StatBonus: 10; Cost: 150),
+    (Name: 'Ashen Greatsword';     StatBonus: 18; Cost: 400),
+    (Name: 'Broadsword';           StatBonus: 24; Cost: 500),
+    (Name: 'Worm Man''s Mace';     StatBonus: 30; Cost: 800),
+    (Name: 'Bloody Dagger of Cron';StatBonus: 45; Cost: 1000),
+    (Name: 'Flail of Sorrow';      StatBonus: 80; Cost: 1600)
   );
 
   ARMORS: array[1..4] of TItem = (
@@ -49,11 +54,22 @@ const
     (Name: 'Knight''s Plate';    StatBonus: 9;  Cost: 375)
   );
 
-  MONSTERS: array[1..4] of TMonster = (
+  MONSTERS: array[1..15] of TMonster = (
     (Name: 'Rabid Timber Wolf'; HP: 18; Attack: 5;  GoldReward: 20;  XPReward: 25),
     (Name: 'Bandit Cutthroat';  HP: 30; Attack: 9;  GoldReward: 45;  XPReward: 50),
     (Name: 'Hollow Knight';     HP: 48; Attack: 14; GoldReward: 95;  XPReward: 110),
-    (Name: 'Ashen Wyrmling';    HP: 75; Attack: 20; GoldReward: 220; XPReward: 250)
+    (Name: 'Ashen Wyrmling';    HP: 75; Attack: 20; GoldReward: 220; XPReward: 250),
+    (Name: 'Mean Looking Bird';    HP: 90; Attack: 20; GoldReward: 250; XPReward: 280),
+    (Name: 'Kyle';    HP: 115; Attack: 20; GoldReward: 270; XPReward: 320),
+    (Name: 'Toxic Bear Zombie';    HP: 130; Attack: 20; GoldReward: 340; XPReward: 360),
+    (Name: 'Zebra Man';    HP: 155; Attack: 20; GoldReward: 380; XPReward: 4000),
+    (Name: 'Really Big Squirrel';    HP: 180; Attack: 20; GoldReward: 450; XPReward: 450),
+    (Name: 'Evil Shadow Demon';    HP: 180; Attack: 20; GoldReward: 2300; XPReward: 550),
+    (Name: 'Ghost Goat';    HP: 240; Attack: 20; GoldReward: 520; XPReward: 650),
+    (Name: '10k Crows in a Trenchcoat';    HP: 300; Attack: 20; GoldReward: 580; XPReward: 750),
+    (Name: 'A Guy with 6 Arms, Named Greg';    HP: 450; Attack: 20; GoldReward: 640; XPReward: 850),
+    (Name: 'Drunken Redneck';    HP: 560; Attack: 20; GoldReward: 700; XPReward: 1000),
+    (Name: 'Boar God';    HP: 700; Attack: 20; GoldReward: 400; XPReward: 1600)
   );
 
 var
@@ -203,7 +219,7 @@ begin
   WriteLn('Equipped: ', WEAPONS[P.WeaponIndex].Name);
   WriteLn;
 
-  for i := 2 to 4 do
+  for i := 1 to 9 do
     WriteLn('[', i, '] ', WEAPONS[i].Name, ' (+', WEAPONS[i].StatBonus, ' Atk) - ', WEAPONS[i].Cost, ' gold');
 
   WriteLn('[0] Leave Shop');
@@ -212,7 +228,7 @@ begin
   Choice := ReadKey;
   WriteLn(Choice);
 
-  if Choice in ['2'..'4'] then
+  if Choice in ['1'..'9'] then
   begin
     Pick := Ord(Choice) - Ord('0');
 
@@ -245,7 +261,7 @@ begin
   WriteLn('Equipped: ', ARMORS[P.ArmorIndex].Name);
   WriteLn;
 
-  for i := 2 to 4 do
+  for i := 1 to 4 do
     WriteLn('[', i, '] ', ARMORS[i].Name, ' (+', ARMORS[i].StatBonus, ' Def) - ', ARMORS[i].Cost, ' gold');
 
   WriteLn('[0] Leave Shop');
@@ -254,7 +270,7 @@ begin
   Choice := ReadKey;
   WriteLn(Choice);
 
-  if Choice in ['2'..'4'] then
+  if Choice in ['1'..'4'] then
   begin
     Pick := Ord(Choice) - Ord('0');
 
@@ -328,9 +344,13 @@ begin
 
   Dec(P.FightsLeft);
 
-  { Unlock the 4th monster once the player reaches Level 2 }
-  if P.Level >= 2 then
-    MaxMonsterIdx := 4
+  { Unlock additional monsters as the player levels up }
+  if P.Level = 2 then
+    MaxMonsterIdx := 4 
+  else if P.Level <= 5 then
+    MaxMonsterIdx := 7 
+  else if P.Level >= 10 then
+    MaxMonsterIdx := 15 
   else
     MaxMonsterIdx := 3;
 
