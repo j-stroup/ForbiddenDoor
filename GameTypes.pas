@@ -97,6 +97,7 @@ procedure SavePlayer(const P: TPlayer);
 function LoadPlayer(var P: TPlayer): Boolean;
 procedure InitPlayer(var P: TPlayer);
 procedure ShowStats(const P: TPlayer);
+function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: Integer): Boolean;
 
 implementation
 
@@ -186,6 +187,75 @@ begin
   WriteLn('Weapon     : ', WEAPONS[P.WeaponIndex].Name, ' (+', WEAPONS[P.WeaponIndex].StatBonus, ' Atk)');
   WriteLn('Armor      : ', ARMORS[P.ArmorIndex].Name, ' (+', ARMORS[P.ArmorIndex].StatBonus, ' Def)');
   Pause;
+end;
+
+function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: Integer): Boolean;
+var
+  i, Pick, EffectAmt: Integer;
+  Choice: Char;
+begin
+  CastCombatSkill := False;
+  WriteLn;
+  TextColor(LightCyan);
+  WriteLn('--- Combat Skills (MP: ', P.MP, '/', P.MaxMP, ') ---');
+  TextColor(LightGray);
+
+  for i := 1 to 3 do
+  begin
+    if P.Level >= SKILLS[i].MinLevel then
+      WriteLn('[', i, '] ', SKILLS[i].Name, ' (', SKILLS[i].MPCost, ' MP) - Power: ', SKILLS[i].Power)
+    else
+    begin
+      TextColor(DarkGray);
+      WriteLn('[', i, '] Locked (Requires Level ', SKILLS[i].MinLevel, ')');
+      TextColor(LightGray);
+    end;
+  end;
+  WriteLn('[0] Cancel');
+  Write('Choose skill: ');
+
+  Choice := ReadKey;
+  WriteLn(Choice);
+
+  if Choice in ['1'..'3'] then
+  begin
+    Pick := Ord(Choice) - Ord('0');
+
+    if P.Level < SKILLS[Pick].MinLevel then
+    begin
+      WriteLn('You have not unlocked that skill yet.');
+      Exit;
+    end;
+
+    if P.MP < SKILLS[Pick].MPCost then
+    begin
+      TextColor(Red);
+      WriteLn('Not enough MP!');
+      TextColor(LightGray);
+      Exit;
+    end;
+
+    P.MP := P.MP - SKILLS[Pick].MPCost;
+    EffectAmt := SKILLS[Pick].Power + Random(P.Level * 3 + 1);
+
+    if SKILLS[Pick].IsHeal then
+    begin
+      P.HP := P.HP + EffectAmt;
+      if P.HP > P.MaxHP then
+        P.HP := P.MaxHP;
+      TextColor(LightGreen);
+      WriteLn('You channel ', SKILLS[Pick].Name, ' and restore ', EffectAmt, ' HP!');
+    end
+    else
+    begin
+      EnemyHP := EnemyHP - EffectAmt;
+      TextColor(LightMagenta);
+      WriteLn('You unleash ', SKILLS[Pick].Name, ' on ', EnemyName, ' for ', EffectAmt, ' magic damage!');
+    end;
+
+    TextColor(LightGray);
+    CastCombatSkill := True;
+  end;
 end;
 
 end.

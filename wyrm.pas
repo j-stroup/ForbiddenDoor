@@ -2,25 +2,13 @@
 program AshenWyrm;
 
 uses
-  Crt, GameTypes, Shops, Combat, Tavern;
+  Crt, GameTypes, Shops, Combat, Tavern, Cemetery;
 
 var
   Hero: TPlayer;
   QuitGame: Boolean;
 
 { Atmospheric exploration stubs ready for future features }
-procedure VisitCemetery;
-begin
-  ClrScr;
-  TextColor(DarkGray);
-  WriteLn('--- South Ridge Old Cemetery ---');
-  TextColor(LightGray);
-  WriteLn('Crooked iron fences lean into the mist among weathered 19th-century headstones.');
-  WriteLn('A heavy stone crypt sits padlocked at the far end of the grounds...');
-  WriteLn('(Nothing stirs here yet—perhaps at a higher level or with the right key.)');
-  Pause;
-end;
-
 procedure VisitFootbridge;
 begin
   ClrScr;
@@ -67,7 +55,7 @@ begin
     'A': VisitArmorShop(Hero);
     'H': VisitHealer(Hero);
     'I': RestAtInn(Hero);
-    'G': VisitCemetery;
+    'G': VisitCemetery(Hero);
     'C': VisitFootbridge;
     'V': ShowStats(Hero);
     'Q': begin
