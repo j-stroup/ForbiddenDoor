@@ -11,6 +11,8 @@ procedure VisitTavern(var P: TPlayer);
 implementation
 
 const
+  RUMOR_FILE = 'RUMORS.TXT';
+
   BRAWLERS: array[1..5] of string[30] = (
     'One-Eyed Butcher',
     'Disgraced Pit Fighter',
@@ -19,12 +21,83 @@ const
     'The Undefeated Swede'
   );
 
-  RUMORS: array[1..4] of string[75] = (
-    'Word is a massive wyrm nests deep beyond the northern ridge...',
-    'Old man Pritchard swears he saw 10,000 crows wearing a wool coat.',
-    'The Apothecary waters down his poultices, though they still work.',
-    'Keep your gold in the South Ridge vault—bandits love unconscious heroes.'
-  );
+{ Creates RUMORS.TXT with starter lines if it does not exist yet }
+procedure EnsureRumorFile;
+var
+  F: Text;
+begin
+  Assign(F, RUMOR_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult = 0 then
+  begin
+    Close(F);
+    Exit; { File already exists, nothing to do }
+  end;
+
+  { File is missing, so create it with initial tavern gossip }
+  Rewrite(F);
+  WriteLn(F, 'Barkeep: Word is a massive wyrm nests deep beyond the northern ridge...');
+  WriteLn(F, 'Old Pritchard: I swear I saw 10,000 crows wearing a wool trenchcoat.');
+  WriteLn(F, 'Traveller: Keep your gold in the South Ridge vault—bandits love unconscious heroes.');
+  Close(F);
+end;
+
+{ Reads all lines from RUMORS.TXT and lets the player append a new one }
+procedure RumorBoard(const P: TPlayer);
+var
+  F: Text;
+  LineBuf: string;
+  Msg: string[70];
+  Choice: Char;
+begin
+  EnsureRumorFile;
+
+  repeat
+    ClrScr;
+    TextColor(LightCyan);
+    WriteLn('=== CARVED INTO THE TAVERN WALL ===');
+    TextColor(LightGray);
+    WriteLn;
+
+    { Open the text file for reading from line 1 }
+    Assign(F, RUMOR_FILE);
+    Reset(F);
+    while not Eof(F) do
+    begin
+      ReadLn(F, LineBuf);
+      WriteLn(' - ', LineBuf);
+    end;
+    Close(F);
+
+    WriteLn;
+    TextColor(Yellow);
+    Write('[W]rite a message on the wall, or [B]ack to tavern? ');
+    TextColor(LightGray);
+    Choice := UpCase(ReadKey);
+    WriteLn(Choice);
+
+    if Choice = 'W' then
+    begin
+      WriteLn;
+      Write('Carve your message (max 70 chars, blank to cancel): ');
+      ReadLn(Msg);
+
+      if Msg <> '' then
+      begin
+        { Open the existing text file and move the cursor to the very end }
+        Assign(F, RUMOR_FILE);
+        Append(F);
+        WriteLn(F, P.Name, ' (Lvl ', P.Level, '): ', Msg);
+        Close(F);
+
+        TextColor(LightGreen);
+        WriteLn('Your words are carved into the oak wall.');
+        TextColor(LightGray);
+        Pause;
+      end;
+    end;
+  until Choice = 'B';
+end;
 
 procedure RunTavernBrawl(var P: TPlayer);
 var
@@ -43,7 +116,6 @@ begin
 
   OpponentName := BRAWLERS[Random(5) + 1];
 
-  { Scale the challenger dynamically to stay dangerous at any player level }
   OppHP := 35 + (P.Level * 22);
   OppAttack := 7 + (P.Level * 4);
   GoldPot := 90 * P.Level;
@@ -70,7 +142,6 @@ begin
     Exit;
   end;
 
-  { Lock out further brawls until the player sleeps at the Inn }
   P.TavernDone := True;
   SavePlayer(P);
 
@@ -95,7 +166,7 @@ begin
       begin
         OppDmg := (Random(OppAttack) + 1) - ARMORS[P.ArmorIndex].StatBonus;
         if OppDmg < 2 then
-          OppDmg := 2; { Pit fighters always hit for at least 2 damage }
+          OppDmg := 2;
 
         P.HP := P.HP - OppDmg;
         TextColor(LightRed);
@@ -150,7 +221,7 @@ begin
       WriteLn('[B] The Fighting Pit (Closed until tomorrow)')
     else
       WriteLn('[B] The Fighting Pit (Daily High-Stakes Brawl Available!)');
-    WriteLn('[R] Listen to Bar Rumors');
+    WriteLn('[R] Read & Carve Wall Rumors');
     WriteLn('[D] Buy a Mug of Ale (5 gold)');
     WriteLn('[L] Leave Tavern');
     WriteLn;
@@ -161,13 +232,7 @@ begin
 
     case Choice of
       'B': RunTavernBrawl(P);
-      'R': begin
-             WriteLn;
-             TextColor(LightCyan);
-             WriteLn('The barkeep leans in: "', RUMORS[Random(4) + 1], '"');
-             TextColor(LightGray);
-             Pause;
-           end;
+      'R': RumorBoard(P);
       'D': begin
              WriteLn;
              if P.Gold < 5 then
