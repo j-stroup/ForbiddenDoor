@@ -48,47 +48,82 @@ type
   end;
 
 const
-  SKILLS: array[1..3] of TSkill = (
-    (Name: 'Ember Spark';   MPCost: 5;  Power: 16; MinLevel: 1; IsHeal: False),
-    (Name: 'Mend Wounds';   MPCost: 8;  Power: 28; MinLevel: 2; IsHeal: True),
-    (Name: 'Arcane Cleave'; MPCost: 14; Power: 42; MinLevel: 4; IsHeal: False)
+  SKILLS: array[1..7] of TSkill = (
+    (Name: 'Ember Spark';        MPCost: 5;  Power: 14;  MinLevel: 1;  IsHeal: False),
+    (Name: 'Mend Wounds';        MPCost: 8;  Power: 26;  MinLevel: 2;  IsHeal: True),
+    (Name: 'Frost Lance';        MPCost: 12; Power: 34;  MinLevel: 4;  IsHeal: False),
+    (Name: 'Arcane Cleave';      MPCost: 18; Power: 52;  MinLevel: 6;  IsHeal: False),
+    (Name: 'Greater Restoration';MPCost: 22; Power: 75;  MinLevel: 8;  IsHeal: True),
+    (Name: 'Soul Rupture';       MPCost: 30; Power: 95;  MinLevel: 11; IsHeal: False),
+    (Name: 'Ashen Cataclysm';    MPCost: 45; Power: 155; MinLevel: 14; IsHeal: False)
   );
 
-  WEAPONS: array[1..9] of TItem = (
-    (Name: 'Rusty Dagger';          StatBonus: 2;  Cost: 0),
-    (Name: 'Steel Fist';            StatBonus: 4;  Cost: 40),
-    (Name: 'Iron Shortsword';       StatBonus: 5;  Cost: 50),
-    (Name: 'Steel Broadsword';      StatBonus: 10; Cost: 150),
-    (Name: 'Ashen Greatsword';      StatBonus: 18; Cost: 400),
-    (Name: 'Broadsword';            StatBonus: 24; Cost: 500),
-    (Name: 'Worm Man''s Mace';      StatBonus: 30; Cost: 800),
-    (Name: 'Bloody Dagger of Cron'; StatBonus: 45; Cost: 1000),
-    (Name: 'Flail of Sorrow';       StatBonus: 80; Cost: 1600)
+  WEAPONS: array[1..15] of TItem = (
+    (Name: 'Rusty Dagger';          StatBonus: 2;   Cost: 0),
+    (Name: 'Steel Fist';            StatBonus: 4;   Cost: 50),
+    (Name: 'Iron Shortsword';       StatBonus: 6;   Cost: 110),
+    (Name: 'Steel Broadsword';      StatBonus: 10;  Cost: 240),
+    (Name: 'Ashen Greatsword';      StatBonus: 15;  Cost: 480),
+    (Name: 'Heavy Claymore';        StatBonus: 21;  Cost: 850),
+    (Name: 'Worm Man''s Mace';      StatBonus: 28;  Cost: 1400),
+    (Name: 'Bloody Dagger of Cron'; StatBonus: 36;  Cost: 2200),
+    (Name: 'Flail of Sorrow';       StatBonus: 46;  Cost: 3400),
+    (Name: 'Runed Warhammmer';      StatBonus: 58;  Cost: 5000),
+    (Name: 'Cryptkeeper''s Scythe'; StatBonus: 72;  Cost: 7500),
+    (Name: 'Starforged Halberd';    StatBonus: 88;  Cost: 11000),
+    (Name: 'Wyrmfang Executioner';  StatBonus: 108; Cost: 16000),
+    (Name: 'Abyssal Soulreaver';    StatBonus: 132; Cost: 23000),
+    (Name: 'Blade of the First Sun';StatBonus: 160; Cost: 32000)
   );
 
-  ARMORS: array[1..4] of TItem = (
-    (Name: 'Tattered Tunic';     StatBonus: 0;  Cost: 0),
-    (Name: 'Boiled Leather';     StatBonus: 2;  Cost: 45),
-    (Name: 'Chainmail Hauberk';  StatBonus: 5;  Cost: 140),
-    (Name: 'Knight''s Plate';    StatBonus: 9;  Cost: 375)
+  ARMORS: array[1..12] of TItem = (
+    (Name: 'Tattered Tunic';        StatBonus: 0;  Cost: 0),
+    (Name: 'Boiled Leather';        StatBonus: 2;  Cost: 55),
+    (Name: 'Studded Brigandine';    StatBonus: 4;  Cost: 140),
+    (Name: 'Chainmail Hauberk';     StatBonus: 7;  Cost: 320),
+    (Name: 'Scale Mail';            StatBonus: 11; Cost: 650),
+    (Name: 'Knight''s Plate';       StatBonus: 16; Cost: 1200),
+    (Name: 'Blackened Steel Plate'; StatBonus: 22; Cost: 2100),
+    (Name: 'Cryptwarden Aegis';     StatBonus: 29; Cost: 3500),
+    (Name: 'Runed Mithril Coat';    StatBonus: 38; Cost: 5600),
+    (Name: 'Wyrmscale Harness';     StatBonus: 48; Cost: 8800),
+    (Name: 'Obsidian Bulwark';      StatBonus: 60; Cost: 13500),
+    (Name: 'Aegis of South Ridge';  StatBonus: 75; Cost: 20000)
   );
 
-  MONSTERS: array[1..15] of TMonster = (
-    (Name: 'Rabid Timber Wolf';             HP: 18;  Attack: 5;  GoldReward: 20;   XPReward: 25),
-    (Name: 'Bandit Cutthroat';              HP: 30;  Attack: 9;  GoldReward: 45;   XPReward: 50),
-    (Name: 'Hollow Knight';                 HP: 48;  Attack: 14; GoldReward: 95;   XPReward: 110),
-    (Name: 'Ashen Wyrmling';                HP: 75;  Attack: 20; GoldReward: 220;  XPReward: 250),
-    (Name: 'Mean Looking Bird';             HP: 90;  Attack: 20; GoldReward: 250;  XPReward: 280),
-    (Name: 'Kyle';                          HP: 115; Attack: 20; GoldReward: 270;  XPReward: 320),
-    (Name: 'Toxic Bear Zombie';             HP: 130; Attack: 20; GoldReward: 340;  XPReward: 360),
-    (Name: 'Zebra Man';                     HP: 155; Attack: 20; GoldReward: 380;  XPReward: 4000),
-    (Name: 'Really Big Squirrel';           HP: 180; Attack: 20; GoldReward: 450;  XPReward: 450),
-    (Name: 'Evil Shadow Demon';             HP: 180; Attack: 20; GoldReward: 2300; XPReward: 550),
-    (Name: 'Ghost Goat';                    HP: 240; Attack: 20; GoldReward: 520;  XPReward: 650),
-    (Name: '10k Crows in a Trenchcoat';     HP: 300; Attack: 20; GoldReward: 580;  XPReward: 750),
-    (Name: 'A Guy with 6 Arms, Named Greg'; HP: 450; Attack: 20; GoldReward: 640;  XPReward: 850),
-    (Name: 'Drunken Redneck';               HP: 560; Attack: 20; GoldReward: 700;  XPReward: 1000),
-    (Name: 'Boar God';                      HP: 700; Attack: 20; GoldReward: 400;  XPReward: 1600)
+  MONSTERS: array[1..24] of TMonster = (
+    { Tier 1: Levels 1-2 }
+    (Name: 'Rabid Timber Wolf';             HP: 16;   Attack: 4;  GoldReward: 20;   XPReward: 25),
+    (Name: 'Bandit Cutthroat';              HP: 24;   Attack: 6;  GoldReward: 35;   XPReward: 40),
+    (Name: 'Hollow Knight';                 HP: 34;   Attack: 8;  GoldReward: 55;   XPReward: 65),
+    { Tier 2: Levels 3-4 }
+    (Name: 'Ashen Wyrmling';                HP: 48;   Attack: 11; GoldReward: 95;   XPReward: 105),
+    (Name: 'Mean Looking Bird';             HP: 64;   Attack: 14; GoldReward: 130;  XPReward: 140),
+    (Name: 'Kyle';                          HP: 82;   Attack: 17; GoldReward: 175;  XPReward: 185),
+    { Tier 3: Levels 5-6 }
+    (Name: 'Toxic Bear Zombie';             HP: 105;  Attack: 20; GoldReward: 230;  XPReward: 240),
+    (Name: 'Zebra Man';                     HP: 130;  Attack: 24; GoldReward: 290;  XPReward: 300),
+    (Name: 'Really Big Squirrel';           HP: 160;  Attack: 28; GoldReward: 360;  XPReward: 375),
+    { Tier 4: Levels 7-9 }
+    (Name: 'Evil Shadow Demon';             HP: 195;  Attack: 33; GoldReward: 450;  XPReward: 465),
+    (Name: 'Ghost Goat';                    HP: 235;  Attack: 38; GoldReward: 540;  XPReward: 560),
+    (Name: '10k Crows in a Trenchcoat';     HP: 280;  Attack: 43; GoldReward: 640;  XPReward: 670),
+    { Tier 5: Levels 10-12 }
+    (Name: 'A Guy with 6 Arms, Named Greg'; HP: 340;  Attack: 49; GoldReward: 760;  XPReward: 800),
+    (Name: 'Drunken Redneck';               HP: 405;  Attack: 55; GoldReward: 890;  XPReward: 940),
+    (Name: 'Boar God';                      HP: 480;  Attack: 62; GoldReward: 1050; XPReward: 1120),
+    { Tier 6: Levels 13-15 }
+    (Name: 'Ironclad Juggernaut';           HP: 565;  Attack: 69; GoldReward: 1250; XPReward: 1340),
+    (Name: 'Bog Witch of Ashtabula';        HP: 660;  Attack: 77; GoldReward: 1480; XPReward: 1580),
+    (Name: 'Skeletal Colossus';             HP: 765;  Attack: 85; GoldReward: 1720; XPReward: 1850),
+    { Tier 7: Levels 16-18 }
+    (Name: 'Clockwork Abomination';         HP: 885;  Attack: 94; GoldReward: 2020; XPReward: 2200),
+    (Name: 'Abyssal Leviathan';             HP: 1020; Attack: 104;GoldReward: 2380; XPReward: 2600),
+    (Name: 'Pale Rider of the Ridge';       HP: 1170; Attack: 114;GoldReward: 2780; XPReward: 3050),
+    { Tier 8: Level 19+ }
+    (Name: 'Eldritch Forest Warden';        HP: 1340; Attack: 125;GoldReward: 3250; XPReward: 3600),
+    (Name: 'Dread Sovereign';               HP: 1530; Attack: 137;GoldReward: 3850; XPReward: 4250),
+    (Name: 'The Ancient Ashen Wyrm';        HP: 1780; Attack: 150;GoldReward: 4800; XPReward: 5300)
   );
 
 procedure Pause;
@@ -112,7 +147,8 @@ end;
 
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 begin
-  XPForNextLevel := (CurrentLevel * 100) + ((CurrentLevel - 1) * 50);
+  { Lvl 1->105, Lvl 2->320, Lvl 5->1625, Lvl 10->6000 }
+  XPForNextLevel := (LongInt(CurrentLevel) * CurrentLevel * 55) + (CurrentLevel * 50);
 end;
 
 procedure SavePlayer(const P: TPlayer);
@@ -200,10 +236,10 @@ begin
   WriteLn('--- Combat Skills (MP: ', P.MP, '/', P.MaxMP, ') ---');
   TextColor(LightGray);
 
-  for i := 1 to 3 do
+  for i := 1 to High(SKILLS) do
   begin
     if P.Level >= SKILLS[i].MinLevel then
-      WriteLn('[', i, '] ', SKILLS[i].Name, ' (', SKILLS[i].MPCost, ' MP) - Power: ', SKILLS[i].Power)
+      WriteLn('[', i, '] ', SKILLS[i].Name, ' (', SKILLS[i].MPCost, ' MP) - Base Power: ', SKILLS[i].Power)
     else
     begin
       TextColor(DarkGray);
@@ -217,9 +253,11 @@ begin
   Choice := ReadKey;
   WriteLn(Choice);
 
-  if Choice in ['1'..'3'] then
+  if Choice in ['1'..'9'] then
   begin
     Pick := Ord(Choice) - Ord('0');
+    if Pick > High(SKILLS) then
+      Exit;
 
     if P.Level < SKILLS[Pick].MinLevel then
     begin
@@ -236,7 +274,8 @@ begin
     end;
 
     P.MP := P.MP - SKILLS[Pick].MPCost;
-    EffectAmt := SKILLS[Pick].Power + Random(P.Level * 3 + 1);
+    { Scale skill power with both base power and player level }
+    EffectAmt := SKILLS[Pick].Power + Random(P.Level * 4 + 1);
 
     if SKILLS[Pick].IsHeal then
     begin

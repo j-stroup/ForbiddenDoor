@@ -128,28 +128,27 @@ end;
 procedure VisitWeaponShop(var P: TPlayer);
 var
   i, Pick: Integer;
-  Choice: Char;
 begin
   ClrScr;
   TextColor(LightCyan);
   WriteLn('--- The Blacksmith (Your Gold: ', P.Gold, ') ---');
   TextColor(LightGray);
-  WriteLn('Equipped: ', WEAPONS[P.WeaponIndex].Name);
+  WriteLn('Equipped: ', WEAPONS[P.WeaponIndex].Name, ' (+', WEAPONS[P.WeaponIndex].StatBonus, ' Atk)');
   WriteLn;
 
-  for i := 1 to 9 do
-    WriteLn('[', i, '] ', WEAPONS[i].Name, ' (+', WEAPONS[i].StatBonus, ' Atk) - ', WEAPONS[i].Cost, ' gold');
+  for i := 2 to High(WEAPONS) do
+    WriteLn('[', i:2, '] ', WEAPONS[i].Name:22, ' (+', WEAPONS[i].StatBonus:3, ' Atk) - ', WEAPONS[i].Cost, ' gold');
 
-  WriteLn('[0] Leave Shop');
+  WriteLn('[ 0] Leave Shop');
   WriteLn;
-  Write('Select a weapon to buy: ');
-  Choice := ReadKey;
-  WriteLn(Choice);
+  Write('Enter weapon number to buy: ');
+  {$I-} ReadLn(Pick); {$I+}
 
-  if Choice in ['1'..'9'] then
+  if (IOResult <> 0) or (Pick = 0) then
+    Exit;
+
+  if (Pick >= 2) and (Pick <= High(WEAPONS)) then
   begin
-    Pick := Ord(Choice) - Ord('0');
-
     if Pick <= P.WeaponIndex then
       WriteLn('You already own that weapon or better!')
     else if P.Gold < WEAPONS[Pick].Cost then
@@ -170,28 +169,27 @@ end;
 procedure VisitArmorShop(var P: TPlayer);
 var
   i, Pick: Integer;
-  Choice: Char;
 begin
   ClrScr;
   TextColor(LightCyan);
   WriteLn('--- The Armorer (Your Gold: ', P.Gold, ') ---');
   TextColor(LightGray);
-  WriteLn('Equipped: ', ARMORS[P.ArmorIndex].Name);
+  WriteLn('Equipped: ', ARMORS[P.ArmorIndex].Name, ' (+', ARMORS[P.ArmorIndex].StatBonus, ' Def)');
   WriteLn;
 
-  for i := 1 to 4 do
-    WriteLn('[', i, '] ', ARMORS[i].Name, ' (+', ARMORS[i].StatBonus, ' Def) - ', ARMORS[i].Cost, ' gold');
+  for i := 2 to High(ARMORS) do
+    WriteLn('[', i:2, '] ', ARMORS[i].Name:22, ' (+', ARMORS[i].StatBonus:2, ' Def) - ', ARMORS[i].Cost, ' gold');
 
-  WriteLn('[0] Leave Shop');
+  WriteLn('[ 0] Leave Shop');
   WriteLn;
-  Write('Select armor to buy: ');
-  Choice := ReadKey;
-  WriteLn(Choice);
+  Write('Enter armor number to buy: ');
+  {$I-} ReadLn(Pick); {$I+}
 
-  if Choice in ['1'..'4'] then
+  if (IOResult <> 0) or (Pick = 0) then
+    Exit;
+
+  if (Pick >= 2) and (Pick <= High(ARMORS)) then
   begin
-    Pick := Ord(Choice) - Ord('0');
-
     if Pick <= P.ArmorIndex then
       WriteLn('You already own that armor or better!')
     else if P.Gold < ARMORS[Pick].Cost then
@@ -210,21 +208,24 @@ begin
 end;
 
 procedure VisitHealer(var P: TPlayer);
-const
-  HEAL_COST = 15;
+var
+  HealCost: LongInt;
 begin
   ClrScr;
+  { Scale healing cost gently with level so full heals stay meaningful }
+  HealCost := 15 + ((P.Level - 1) * 10);
+
   TextColor(LightGreen);
-  WriteLn('--- The Apothecary ---');
+  WriteLn('--- The Apothecary (Fee: ', HealCost, ' gold) ---');
   TextColor(LightGray);
 
   if P.HP = P.MaxHP then
     WriteLn('You are already at full health.')
-  else if P.Gold < HEAL_COST then
-    WriteLn('You need ', HEAL_COST, ' gold, but only have ', P.Gold, '.')
+  else if P.Gold < HealCost then
+    WriteLn('You need ', HealCost, ' gold, but only have ', P.Gold, '.')
   else
   begin
-    P.Gold := P.Gold - HEAL_COST;
+    P.Gold := P.Gold - HealCost;
     P.HP := P.MaxHP;
     SavePlayer(P);
     WriteLn('Your wounds close. HP restored to ', P.MaxHP, '!');

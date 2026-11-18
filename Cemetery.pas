@@ -33,7 +33,7 @@ begin
 
     if Action = 'A' then
     begin
-      PlayerDmg := Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus + 1;
+      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
       EnemyHP := EnemyHP - PlayerDmg;
       TextColor(LightGreen);
       WriteLn('You strike ', EnemyName, ' for ', PlayerDmg, ' damage!');
@@ -70,8 +70,10 @@ begin
   begin
     TextColor(Red);
     WriteLn('Darkness swallows you! The portal spits you back onto the cemetery grass.');
+    if P.Gold > 0 then
+      WriteLn('All ', P.Gold, ' gold you carried was lost in the abyss!');
     P.HP := 1;
-    P.Gold := P.Gold div 2;
+    P.Gold := 0;
     SavePlayer(P);
     TextColor(LightGray);
     Pause;
@@ -110,12 +112,16 @@ begin
     case Room of
       1: begin
            WriteLn('Torchlight flickers across damp limestone walls lined with carved skulls.');
-           if not CryptBattle(P, 'Risen Gravewarden', 35 + (P.Level * 10), 8 + (P.Level * 2), 65 * P.Level, 55 * P.Level) then
+           if not CryptBattle(P, 'Risen Gravewarden',
+              28 + (P.Level * 18),
+              6 + (P.Level * 3),
+              70 * P.Level,
+              60 * P.Level) then
              Exit;
          end;
 
       2: begin
-           WriteLn('rows of sealed clay urns line this narrow vault.');
+           WriteLn('Rows of sealed clay urns line this narrow vault.');
            Write('Smash a dusty urn before moving on? [Y/N]: ');
            Choice := UpCase(ReadKey);
            WriteLn(Choice);
@@ -142,13 +148,21 @@ begin
            end;
 
            WriteLn;
-           if not CryptBattle(P, 'Bone Sentinel', 50 + (P.Level * 14), 10 + (P.Level * 3), 95 * P.Level, 80 * P.Level) then
+           if not CryptBattle(P, 'Bone Sentinel',
+              42 + (P.Level * 24),
+              8 + (P.Level * 4),
+              110 * P.Level,
+              90 * P.Level) then
              Exit;
          end;
 
       3: begin
            WriteLn('Black ankle-deep water covers the flagstones. Cold mist clings to your armor.');
-           if not CryptBattle(P, 'Wraith of South Ridge', 65 + (P.Level * 18), 13 + (P.Level * 3), 135 * P.Level, 115 * P.Level) then
+           if not CryptBattle(P, 'Wraith of South Ridge',
+              60 + (P.Level * 32),
+              10 + (P.Level * 5),
+              160 * P.Level,
+              130 * P.Level) then
              Exit;
          end;
 
@@ -156,7 +170,11 @@ begin
            TextColor(Yellow);
            WriteLn('You enter the Inner Sanctum. An obsidian sarcophagus cracks open!');
            TextColor(LightGray);
-           if not CryptBattle(P, 'Malakor, Lord of the Crypt', 95 + (P.Level * 25), 16 + (P.Level * 4), 250 * P.Level, 220 * P.Level) then
+           if not CryptBattle(P, 'Malakor, Lord of the Crypt',
+              85 + (P.Level * 42) + (P.Level * P.Level * 2),
+              13 + (P.Level * 6),
+              320 * P.Level,
+              260 * P.Level) then
              Exit;
 
            WriteLn;
@@ -169,7 +187,6 @@ begin
          end;
     end;
 
-    { After clearing Rooms 1, 2, or 3, let the player choose to push on or bail out }
     WriteLn;
     TextColor(LightCyan);
     Write('Descend into Chamber ', Room + 1, ', or [R]etreat to the surface? [D/R]: ');

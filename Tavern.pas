@@ -116,10 +116,11 @@ begin
 
   OpponentName := BRAWLERS[Random(5) + 1];
 
-  OppHP := 35 + (P.Level * 22);
-  OppAttack := 7 + (P.Level * 4);
-  GoldPot := 90 * P.Level;
-  XPPot := 85 * P.Level;
+  { Tougher than a normal forest monster, but beatable with good tactics/skills }
+  OppHP := 35 + (P.Level * 28) + (P.Level * P.Level * 2);
+  OppAttack := 7 + (P.Level * 5);
+  GoldPot := 120 * P.Level;
+  XPPot := 95 * P.Level;
 
   TextColor(LightRed);
   WriteLn('=== THE TAVERN PIT ===');
@@ -157,7 +158,7 @@ begin
 
     if Action = 'A' then
     begin
-      PlayerDmg := Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus + 1;
+      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
       OppHP := OppHP - PlayerDmg;
       TextColor(LightGreen);
       WriteLn('You strike ', OpponentName, ' for ', PlayerDmg, ' damage!');
@@ -188,9 +189,9 @@ begin
   begin
     TextColor(Red);
     WriteLn('LIGHTS OUT! ', OpponentName, ' knocks you cold.');
-    WriteLn('You wake up in the mud behind the tavern, missing half your pocket gold.');
+    WriteLn('You wake up in the alley behind the tavern—your pockets picked completely clean!');
     P.HP := 1;
-    P.Gold := P.Gold div 2;
+    P.Gold := 0;
   end
   else
   begin

@@ -15,19 +15,24 @@ procedure FightMonster(var P: TPlayer);
 var
   Enemy: TMonster;
   Action: Char;
-  PlayerDmg, EnemyDmg, MaxMonsterIdx: Integer;
+  PlayerDmg, EnemyDmg, MinMonsterIdx, MaxMonsterIdx: Integer;
   TurnTaken: Boolean;
 begin
+  { Smoother sliding encounter bracket }
   case P.Level of
-    1:    MaxMonsterIdx := 3;
-    2:    MaxMonsterIdx := 4;
-    3..5: MaxMonsterIdx := 7;
-    6..9: MaxMonsterIdx := 11;
+    1:      begin MinMonsterIdx := 1;  MaxMonsterIdx := 2;  end;
+    2:      begin MinMonsterIdx := 1;  MaxMonsterIdx := 3;  end;
+    3..4:   begin MinMonsterIdx := 2;  MaxMonsterIdx := 6;  end;
+    5..6:   begin MinMonsterIdx := 4;  MaxMonsterIdx := 9;  end;
+    7..9:   begin MinMonsterIdx := 7;  MaxMonsterIdx := 12; end;
+    10..12: begin MinMonsterIdx := 10; MaxMonsterIdx := 15; end;
+    13..15: begin MinMonsterIdx := 13; MaxMonsterIdx := 18; end;
+    16..18: begin MinMonsterIdx := 16; MaxMonsterIdx := 21; end;
   else
-    MaxMonsterIdx := 15;
+    begin MinMonsterIdx := 19; MaxMonsterIdx := High(MONSTERS); end;
   end;
 
-  Enemy := MONSTERS[Random(MaxMonsterIdx) + 1];
+  Enemy := MONSTERS[MinMonsterIdx + Random(MaxMonsterIdx - MinMonsterIdx + 1)];
 
   TextColor(LightRed);
   WriteLn('A ', Enemy.Name, ' emerges from the shadows!');
@@ -43,7 +48,8 @@ begin
 
     if Action = 'A' then
     begin
-      PlayerDmg := Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus + 1;
+      { Reliable base damage from Strength div 2 + random roll + weapon bonus }
+      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
       Enemy.HP := Enemy.HP - PlayerDmg;
       TextColor(LightGreen);
       WriteLn('You swing your ', WEAPONS[P.WeaponIndex].Name, ' for ', PlayerDmg, ' damage!');
@@ -62,7 +68,6 @@ begin
       Exit;
     end;
 
-    { Monster counterattacks only if the player completed an attack or skill and the enemy survived }
     if TurnTaken and (Enemy.HP > 0) then
     begin
       EnemyDmg := (Random(Enemy.Attack) + 1) - ARMORS[P.ArmorIndex].StatBonus;
@@ -80,9 +85,11 @@ begin
   if P.HP <= 0 then
   begin
     TextColor(Red);
-    WriteLn('You fall in battle! A merchant hauls you back to town.');
+    WriteLn('You fall in battle! Bandits strip your corpse before a merchant drags you to town.');
+    if P.Gold > 0 then
+      WriteLn('You lost all ', P.Gold, ' gold you were carrying!');
     P.HP := 1;
-    P.Gold := P.Gold div 2;
+    P.Gold := 0;
   end
   else
   begin
