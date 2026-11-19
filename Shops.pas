@@ -266,6 +266,7 @@ begin
     P.Gold := P.Gold - RoomCost;
     P.FightsLeft := 5;
     P.TavernDone := False;
+    P.BridgeDone := False;
     P.HP := P.MaxHP;
     P.MP := P.MaxMP;
 
@@ -296,3 +297,5 @@ begin
     Pause;
   end;
 end;
+
+end.

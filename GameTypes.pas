@@ -36,6 +36,7 @@ type
     BankGold: LongInt;
     FightsLeft: Integer;
     TavernDone: Boolean;
+    BridgeDone: Boolean;
     WeaponIndex: Integer;
     ArmorIndex: Integer;
   end;
@@ -242,6 +243,7 @@ begin
   P.BankGold := 0;
   P.FightsLeft := 5;
   P.TavernDone := False;
+  P.BridgeDone := False;
   P.WeaponIndex := 1;
   P.ArmorIndex := 1;
 

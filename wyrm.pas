@@ -2,23 +2,11 @@
 program AshenWyrm;
 
 uses
-  Crt, GameTypes, Shops, Combat, Tavern, Cemetery;
+  Crt, GameTypes, Shops, Combat, Tavern, Cemetery, Footbridge;
 
 var
   Hero: TPlayer;
   QuitGame: Boolean;
-
-{ Atmospheric exploration stubs ready for future features }
-procedure VisitFootbridge;
-begin
-  ClrScr;
-  TextColor(LightCyan);
-  WriteLn('--- The Creek Footbridge ---');
-  TextColor(LightGray);
-  WriteLn('Dark water rushes beneath mossy timber planks into the thick woods.');
-  WriteLn('Something metallic glints briefly in the gravel bed below, out of reach.');
-  Pause;
-end;
 
 procedure TownMenu;
 var
@@ -57,7 +45,7 @@ begin
     'H': VisitHealer(Hero);
     'I': RestAtInn(Hero);
     'G': VisitCemetery(Hero);
-    'C': VisitFootbridge;
+    'C': VisitFootbridge(Hero);
     'V': ShowStats(Hero);
     'R': ShowLeaderboard(Hero.Name);
     'Q': begin
