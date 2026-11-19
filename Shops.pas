@@ -4,7 +4,7 @@ unit Shops;
 interface
 
 uses
-  Crt, GameTypes;
+  Crt, SysUtils, GameTypes;
 
 procedure VisitBank(var P: TPlayer);
 procedure VisitTrainer(var P: TPlayer);
@@ -235,18 +235,22 @@ end;
 
 procedure RestAtInn(var P: TPlayer);
 var
-  RoomCost, Interest: LongInt;
+  RoomCost: LongInt;
+  HPRecover, MPRecover: Integer;
   Choice: Char;
 begin
   ClrScr;
-  RoomCost := 20 * P.Level;
+  RoomCost := 15 * P.Level;
 
   TextColor(Yellow);
   WriteLn('--- The South Ridge Inn ---');
   TextColor(LightGray);
-  WriteLn('A private room costs ', RoomCost, ' gold (Your gold: ', P.Gold, ').');
-  WriteLn('[R] Rent a Room (Full HP/MP, 5 fights, +5% Bank Interest)');
-  WriteLn('[S] Sleep in the Stables (Free: 50% HP/MP, 3 fights, no interest)');
+  WriteLn('Server Time: ', FormatDateTime('hh:nn am/pm', Now), ' (Daily limits reset at midnight)');
+  WriteLn;
+  WriteLn('A quiet room for a few hours costs ', RoomCost, ' gold (Your gold: ', P.Gold, ').');
+  WriteLn('Resting recovers up to 50% of your Max HP and Max MP.');
+  WriteLn;
+  WriteLn('[R] Rent a Room to Recover (', RoomCost, ' gold)');
   WriteLn('[L] Leave');
   WriteLn;
   Write('Your choice: ');
@@ -256,44 +260,37 @@ begin
 
   if Choice = 'R' then
   begin
+    if (P.HP = P.MaxHP) and (P.MP = P.MaxMP) then
+    begin
+      WriteLn('You are already fully rested!');
+      Pause;
+      Exit;
+    end;
+
     if P.Gold < RoomCost then
     begin
-      WriteLn('You don''t have enough gold on hand for a room.');
+      WriteLn('The innkeeper shakes his head. "You don''t have enough gold for a room."');
       Pause;
       Exit;
     end;
 
     P.Gold := P.Gold - RoomCost;
-    P.FightsLeft := 5;
-    P.TavernDone := False;
-    P.BridgeDone := False;
-    P.HP := P.MaxHP;
-    P.MP := P.MaxMP;
 
-    Interest := (P.BankGold * 5) div 100;
-    if (P.BankGold > 0) and (Interest = 0) then
-      Interest := 1;
-    P.BankGold := P.BankGold + Interest;
+    HPRecover := P.MaxHP div 2;
+    if HPRecover < 1 then HPRecover := 1;
+    P.HP := P.HP + HPRecover;
+    if P.HP > P.MaxHP then P.HP := P.MaxHP;
+
+    MPRecover := P.MaxMP div 2;
+    if MPRecover < 1 then MPRecover := 1;
+    P.MP := P.MP + MPRecover;
+    if P.MP > P.MaxMP then P.MP := P.MaxMP;
 
     SavePlayer(P);
     TextColor(LightGreen);
-    WriteLn('You sleep soundly until dawn. HP, MP, and 5 forest fights restored!');
-    if Interest > 0 then
-      WriteLn('Your bank vault earned ', Interest, ' gold in interest (New balance: ', P.BankGold, ').');
+    WriteLn('You nap beside the hearth and wake refreshed!');
+    WriteLn('HP is now ', P.HP, '/', P.MaxHP, ' | MP is now ', P.MP, '/', P.MaxMP, '.');
     TextColor(LightGray);
-    Pause;
-  end
-  else if Choice = 'S' then
-  begin
-    P.FightsLeft := 3;
-    P.TavernDone := False;
-    if P.HP < (P.MaxHP div 2) then
-      P.HP := P.MaxHP div 2;
-    if P.MP < (P.MaxMP div 2) then
-      P.MP := P.MaxMP div 2;
-
-    SavePlayer(P);
-    WriteLn('You wake up stiff in the hay, ready for 3 fights.');
     Pause;
   end;
 end;

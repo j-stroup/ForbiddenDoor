@@ -12,6 +12,7 @@ procedure TownMenu;
 var
   Choice: Char;
 begin
+  CheckDailyReset(Hero);
   ClrScr;
   TextColor(LightRed);
   WriteLn('===========================================================');
@@ -25,7 +26,7 @@ begin
   WriteLn('[W] Weapon Shop (Blacksmith)');
   WriteLn('[A] Armor Shop (Armorer)');
   WriteLn('[H] Healer (15 gold)');
-  WriteLn('[I] Inn (Rest & Reset Fights)');
+  WriteLn('[I] Inn (Rest & Recover)');
   WriteLn('[G] Old Cemetery (Explore)');
   WriteLn('[C] Creek Footbridge (Explore)');
   WriteLn('[V] View Warrior Stats');

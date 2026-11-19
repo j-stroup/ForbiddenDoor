@@ -37,6 +37,7 @@ type
     FightsLeft: Integer;
     TavernDone: Boolean;
     BridgeDone: Boolean;
+    LastPlayDay: LongInt;
     WeaponIndex: Integer;
     ArmorIndex: Integer;
   end;
@@ -132,6 +133,7 @@ procedure Pause;
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 procedure SavePlayer(const P: TPlayer);
 function LoginPlayer(var P: TPlayer): Boolean;
+procedure CheckDailyReset(var P: TPlayer);
 procedure ShowStats(const P: TPlayer);
 procedure ShowLeaderboard(const CurrentPlayerName: string);
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: Integer): Boolean;
@@ -212,6 +214,43 @@ begin
   Close(F);
 end;
 
+{ Checks if the real-world calendar date has passed midnight since last reset }
+procedure CheckDailyReset(var P: TPlayer);
+var
+  Today, Interest: LongInt;
+begin
+  Today := Trunc(Date);
+
+  if Today > P.LastPlayDay then
+  begin
+    P.LastPlayDay := Today;
+    P.FightsLeft := 5;
+    P.TavernDone := False;
+    P.BridgeDone := False;
+
+    { Apply 5% daily bank interest once per active rollover }
+    Interest := (P.BankGold * 5) div 100;
+    if (P.BankGold > 0) and (Interest = 0) then
+      Interest := 1;
+    P.BankGold := P.BankGold + Interest;
+
+    SavePlayer(P);
+
+    ClrScr;
+    TextColor(Yellow);
+    WriteLn('===========================================================');
+    WriteLn('             A NEW DAWN BREAKS OVER SOUTH RIDGE            ');
+    WriteLn('===========================================================');
+    TextColor(LightGreen);
+    WriteLn('Your daily forest fights (5), Tavern Pit, and Creek');
+    WriteLn('Footbridge expedition have all been reset!');
+    if Interest > 0 then
+      WriteLn('Your bank vault earned ', Interest, ' gold in overnight interest (Balance: ', P.BankGold, ').');
+    TextColor(LightGray);
+    Pause;
+  end;
+end;
+
 { Appends a brand-new player record to the end of PLAYER.DAT }
 procedure CreateNewCharacter(var P: TPlayer; const ChosenName: string);
 var
@@ -244,6 +283,7 @@ begin
   P.FightsLeft := 5;
   P.TavernDone := False;
   P.BridgeDone := False;
+  P.LastPlayDay := Trunc(Date);
   P.WeaponIndex := 1;
   P.ArmorIndex := 1;
 
@@ -403,6 +443,7 @@ begin
           WriteLn('Welcome back, ', P.Name, ' (Level ', P.Level, ')!');
           TextColor(LightGray);
           Pause;
+          CheckDailyReset(P);
           LoginPlayer := True;
           Exit;
         end
