@@ -13,12 +13,13 @@ implementation
 const
   RUMOR_FILE = 'RUMORS.TXT';
 
-  BRAWLERS: array[1..5] of string[30] = (
+  BRAWLERS: array[1..6] of string[30] = (
     'One-Eyed Butcher',
     'Disgraced Pit Fighter',
     'Iron-Jawed Dockworker',
     'Scarred Mercenary Captain',
-    'The Undefeated Swede'
+    'The Undefeated Swede',
+    'Captain Crunch'
   );
 
 { Creates RUMORS.TXT with starter lines if it does not exist yet }
@@ -114,13 +115,13 @@ begin
     Exit;
   end;
 
-  OpponentName := BRAWLERS[Random(5) + 1];
+  OpponentName := BRAWLERS[Random(6) + 1];
 
   { Tougher than a normal forest monster, but beatable with good tactics/skills }
-  OppHP := 35 + (P.Level * 28) + (P.Level * P.Level * 2);
-  OppAttack := 7 + (P.Level * 5);
-  GoldPot := 120 * P.Level;
-  XPPot := 95 * P.Level;
+  OppHP := 45 + (P.Level * 36) + (P.Level * P.Level * 3);
+  OppAttack := 9 + (P.Level * 7);
+  GoldPot := 130 * P.Level;
+  XPPot := 105 * P.Level;
 
   TextColor(LightRed);
   WriteLn('=== THE TAVERN PIT ===');

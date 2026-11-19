@@ -4,7 +4,7 @@ unit GameTypes;
 interface
 
 uses
-  Crt;
+  Crt, SysUtils;
 
 const
   SAVE_FILE = 'PLAYER.DAT';
@@ -26,6 +26,7 @@ type
 
   TPlayer = record
     Name: string[30];
+    Pin: string[16];      { New: Simple character PIN for login }
     Level: Integer;
     XP: LongInt;
     HP, MaxHP: Integer;
@@ -49,13 +50,13 @@ type
 
 const
   SKILLS: array[1..7] of TSkill = (
-    (Name: 'Ember Spark';        MPCost: 5;  Power: 14;  MinLevel: 1;  IsHeal: False),
-    (Name: 'Mend Wounds';        MPCost: 8;  Power: 26;  MinLevel: 2;  IsHeal: True),
-    (Name: 'Frost Lance';        MPCost: 12; Power: 34;  MinLevel: 4;  IsHeal: False),
-    (Name: 'Arcane Cleave';      MPCost: 18; Power: 52;  MinLevel: 6;  IsHeal: False),
-    (Name: 'Greater Restoration';MPCost: 22; Power: 75;  MinLevel: 8;  IsHeal: True),
-    (Name: 'Soul Rupture';       MPCost: 30; Power: 95;  MinLevel: 11; IsHeal: False),
-    (Name: 'Ashen Cataclysm';    MPCost: 45; Power: 155; MinLevel: 14; IsHeal: False)
+    (Name: 'Ember Spark';         MPCost: 5;  Power: 14;  MinLevel: 1;  IsHeal: False),
+    (Name: 'Mend Wounds';         MPCost: 8;  Power: 26;  MinLevel: 2;  IsHeal: True),
+    (Name: 'Frost Lance';         MPCost: 12; Power: 34;  MinLevel: 4;  IsHeal: False),
+    (Name: 'Arcane Cleave';       MPCost: 18; Power: 52;  MinLevel: 6;  IsHeal: False),
+    (Name: 'Greater Restoration'; MPCost: 22; Power: 75;  MinLevel: 8;  IsHeal: True),
+    (Name: 'Soul Rupture';        MPCost: 30; Power: 95;  MinLevel: 11; IsHeal: False),
+    (Name: 'Ashen Cataclysm';     MPCost: 45; Power: 155; MinLevel: 14; IsHeal: False)
   );
 
   WEAPONS: array[1..15] of TItem = (
@@ -68,7 +69,7 @@ const
     (Name: 'Worm Man''s Mace';      StatBonus: 28;  Cost: 1400),
     (Name: 'Bloody Dagger of Cron'; StatBonus: 36;  Cost: 2200),
     (Name: 'Flail of Sorrow';       StatBonus: 46;  Cost: 3400),
-    (Name: 'Runed Warhammmer';      StatBonus: 58;  Cost: 5000),
+    (Name: 'Runed Warhammer';       StatBonus: 58;  Cost: 5000),
     (Name: 'Cryptkeeper''s Scythe'; StatBonus: 72;  Cost: 7500),
     (Name: 'Starforged Halberd';    StatBonus: 88;  Cost: 11000),
     (Name: 'Wyrmfang Executioner';  StatBonus: 108; Cost: 16000),
@@ -93,48 +94,52 @@ const
 
   MONSTERS: array[1..24] of TMonster = (
     { Tier 1: Levels 1-2 }
-    (Name: 'Rabid Timber Wolf';             HP: 16;   Attack: 4;  GoldReward: 20;   XPReward: 25),
-    (Name: 'Bandit Cutthroat';              HP: 24;   Attack: 6;  GoldReward: 35;   XPReward: 40),
-    (Name: 'Hollow Knight';                 HP: 34;   Attack: 8;  GoldReward: 55;   XPReward: 65),
+    (Name: 'Rabid Timber Wolf';             HP: 20;   Attack: 5;   GoldReward: 22;   XPReward: 24),
+    (Name: 'Bandit Cutthroat';              HP: 30;   Attack: 8;   GoldReward: 38;   XPReward: 38),
+    (Name: 'Hollow Knight';                 HP: 44;   Attack: 11;  GoldReward: 60;   XPReward: 58),
     { Tier 2: Levels 3-4 }
-    (Name: 'Ashen Wyrmling';                HP: 48;   Attack: 11; GoldReward: 95;   XPReward: 105),
-    (Name: 'Mean Looking Bird';             HP: 64;   Attack: 14; GoldReward: 130;  XPReward: 140),
-    (Name: 'Kyle';                          HP: 82;   Attack: 17; GoldReward: 175;  XPReward: 185),
+    (Name: 'Ashen Wyrmling';                HP: 65;   Attack: 15;  GoldReward: 100;  XPReward: 95),
+    (Name: 'Mean Looking Bird';             HP: 88;   Attack: 19;  GoldReward: 140;  XPReward: 130),
+    (Name: 'Kyle';                          HP: 115;  Attack: 23;  GoldReward: 185;  XPReward: 170),
     { Tier 3: Levels 5-6 }
-    (Name: 'Toxic Bear Zombie';             HP: 105;  Attack: 20; GoldReward: 230;  XPReward: 240),
-    (Name: 'Zebra Man';                     HP: 130;  Attack: 24; GoldReward: 290;  XPReward: 300),
-    (Name: 'Really Big Squirrel';           HP: 160;  Attack: 28; GoldReward: 360;  XPReward: 375),
+    (Name: 'Toxic Bear Zombie';             HP: 150;  Attack: 28;  GoldReward: 245;  XPReward: 225),
+    (Name: 'Zebra Man';                     HP: 190;  Attack: 33;  GoldReward: 310;  XPReward: 285),
+    (Name: 'Really Big Squirrel';           HP: 235;  Attack: 39;  GoldReward: 385;  XPReward: 355),
     { Tier 4: Levels 7-9 }
-    (Name: 'Evil Shadow Demon';             HP: 195;  Attack: 33; GoldReward: 450;  XPReward: 465),
-    (Name: 'Ghost Goat';                    HP: 235;  Attack: 38; GoldReward: 540;  XPReward: 560),
-    (Name: '10k Crows in a Trenchcoat';     HP: 280;  Attack: 43; GoldReward: 640;  XPReward: 670),
+    (Name: 'Evil Shadow Demon';             HP: 290;  Attack: 46;  GoldReward: 480;  XPReward: 440),
+    (Name: 'Ghost Goat';                    HP: 350;  Attack: 53;  GoldReward: 580;  XPReward: 530),
+    (Name: '10k Crows in a Trenchcoat';     HP: 420;  Attack: 60;  GoldReward: 690;  XPReward: 635),
     { Tier 5: Levels 10-12 }
-    (Name: 'A Guy with 6 Arms, Named Greg'; HP: 340;  Attack: 49; GoldReward: 760;  XPReward: 800),
-    (Name: 'Drunken Redneck';               HP: 405;  Attack: 55; GoldReward: 890;  XPReward: 940),
-    (Name: 'Boar God';                      HP: 480;  Attack: 62; GoldReward: 1050; XPReward: 1120),
+    (Name: 'A Guy with 6 Arms, Named Greg'; HP: 510;  Attack: 69;  GoldReward: 820;  XPReward: 760),
+    (Name: 'Drunken Redneck';               HP: 610;  Attack: 78;  GoldReward: 960;  XPReward: 895),
+    (Name: 'Boar God';                      HP: 725;  Attack: 88;  GoldReward: 1140; XPReward: 1060),
     { Tier 6: Levels 13-15 }
-    (Name: 'Ironclad Juggernaut';           HP: 565;  Attack: 69; GoldReward: 1250; XPReward: 1340),
-    (Name: 'Bog Witch of Ashtabula';        HP: 660;  Attack: 77; GoldReward: 1480; XPReward: 1580),
-    (Name: 'Skeletal Colossus';             HP: 765;  Attack: 85; GoldReward: 1720; XPReward: 1850),
+    (Name: 'Ironclad Juggernaut';           HP: 860;  Attack: 99;  GoldReward: 1350; XPReward: 1260),
+    (Name: 'Bog Witch of Ashtabula';        HP: 1010; Attack: 110; GoldReward: 1600; XPReward: 1490),
+    (Name: 'Skeletal Colossus';             HP: 1180; Attack: 122; GoldReward: 1880; XPReward: 1750),
     { Tier 7: Levels 16-18 }
-    (Name: 'Clockwork Abomination';         HP: 885;  Attack: 94; GoldReward: 2020; XPReward: 2200),
-    (Name: 'Abyssal Leviathan';             HP: 1020; Attack: 104;GoldReward: 2380; XPReward: 2600),
-    (Name: 'Pale Rider of the Ridge';       HP: 1170; Attack: 114;GoldReward: 2780; XPReward: 3050),
+    (Name: 'Clockwork Abomination';         HP: 1370; Attack: 135; GoldReward: 2200; XPReward: 2060),
+    (Name: 'Abyssal Leviathan';             HP: 1580; Attack: 149; GoldReward: 2580; XPReward: 2420),
+    (Name: 'Pale Rider of the Ridge';       HP: 1820; Attack: 164; GoldReward: 3000; XPReward: 2840),
     { Tier 8: Level 19+ }
-    (Name: 'Eldritch Forest Warden';        HP: 1340; Attack: 125;GoldReward: 3250; XPReward: 3600),
-    (Name: 'Dread Sovereign';               HP: 1530; Attack: 137;GoldReward: 3850; XPReward: 4250),
-    (Name: 'The Ancient Ashen Wyrm';        HP: 1780; Attack: 150;GoldReward: 4800; XPReward: 5300)
+    (Name: 'Eldritch Forest Warden';        HP: 2090; Attack: 180; GoldReward: 3500; XPReward: 3340),
+    (Name: 'Dread Sovereign';               HP: 2400; Attack: 198; GoldReward: 4100; XPReward: 3920),
+    (Name: 'The Ancient Ashen Wyrm';        HP: 2800; Attack: 218; GoldReward: 5200; XPReward: 4800)
   );
 
 procedure Pause;
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 procedure SavePlayer(const P: TPlayer);
-function LoadPlayer(var P: TPlayer): Boolean;
-procedure InitPlayer(var P: TPlayer);
+function LoginPlayer(var P: TPlayer): Boolean;
 procedure ShowStats(const P: TPlayer);
+procedure ShowLeaderboard(const CurrentPlayerName: string);
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: Integer): Boolean;
 
 implementation
+
+var
+  { Private to GameTypes: tracks which slot in PLAYER.DAT belongs to this session }
+  CurrentPlayerIndex: LongInt;
 
 procedure Pause;
 begin
@@ -147,49 +152,85 @@ end;
 
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 begin
-  { Lvl 1->105, Lvl 2->320, Lvl 5->1625, Lvl 10->6000 }
-  XPForNextLevel := (LongInt(CurrentLevel) * CurrentLevel * 55) + (CurrentLevel * 50);
+  { Steeper progression: Lvl 1->185, Lvl 2->540, Lvl 5->2825, Lvl 10->10400 }
+  XPForNextLevel := (LongInt(CurrentLevel) * CurrentLevel * 95) + (CurrentLevel * 90);
 end;
 
+{ Overwrites ONLY this player's specific record slot in PLAYER.DAT }
 procedure SavePlayer(const P: TPlayer);
 var
   F: file of TPlayer;
+  Retries: Integer;
 begin
+  if CurrentPlayerIndex < 0 then
+    Exit;
+
   Assign(F, SAVE_FILE);
-  Rewrite(F);
-  Write(F, P);
+  Retries := 0;
+
+  { Retry briefly if another concurrent player has PLAYER.DAT locked }
+  repeat
+    {$I-} Reset(F); {$I+}
+    if IOResult = 0 then
+    begin
+      Seek(F, CurrentPlayerIndex);
+      Write(F, P);
+      Close(F);
+      Exit;
+    end;
+    Inc(Retries);
+    Delay(25);
+  until Retries >= 20;
+end;
+
+{ Searches PLAYER.DAT by Name; returns record index (0..N-1) or -1 if not found }
+function FindPlayerByName(const SearchName: string; var FoundRec: TPlayer): LongInt;
+var
+  F: file of TPlayer;
+  TempRec: TPlayer;
+  i: LongInt;
+begin
+  FindPlayerByName := -1;
+  Assign(F, SAVE_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult <> 0 then
+    Exit;
+
+  for i := 0 to FileSize(F) - 1 do
+  begin
+    Seek(F, i);
+    Read(F, TempRec);
+    if UpperCase(Trim(TempRec.Name)) = UpperCase(Trim(SearchName)) then
+    begin
+      FoundRec := TempRec;
+      FindPlayerByName := i;
+      Break;
+    end;
+  end;
+
   Close(F);
 end;
 
-function LoadPlayer(var P: TPlayer): Boolean;
+{ Appends a brand-new player record to the end of PLAYER.DAT }
+procedure CreateNewCharacter(var P: TPlayer; const ChosenName: string);
 var
   F: file of TPlayer;
+  NewPin: string[16];
 begin
-  LoadPlayer := False;
-  Assign(F, SAVE_FILE);
-  {$I-} Reset(F); {$I+}
-  if IOResult = 0 then
-  begin
-    if not Eof(F) then
-    begin
-      Read(F, P);
-      LoadPlayer := True;
-    end;
-    Close(F);
-  end;
-end;
-
-procedure InitPlayer(var P: TPlayer);
-begin
-  ClrScr;
+  WriteLn;
+  TextColor(DarkGray);
+  WriteLn('(Tip: Pick a simple game PIN—never reuse a real password over Telnet.)');
   TextColor(Yellow);
-  Write('No save file found. Enter your warrior''s name: ');
-  TextColor(White);
-  ReadLn(P.Name);
+  repeat
+    Write('Create a PIN for ', ChosenName, ' (4-16 chars): ');
+    TextColor(White);
+    ReadLn(NewPin);
+    NewPin := Trim(NewPin);
+    TextColor(Yellow);
+  until Length(NewPin) >= 4;
 
-  if P.Name = '' then
-    P.Name := 'Strider';
-
+  P.Name := ChosenName;
+  P.Pin := NewPin;
   P.Level := 1;
   P.XP := 0;
   P.MaxHP := 50;
@@ -204,7 +245,199 @@ begin
   P.WeaponIndex := 1;
   P.ArmorIndex := 1;
 
-  SavePlayer(P);
+  Assign(F, SAVE_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult <> 0 then
+    Rewrite(F); { First character ever created on this server }
+
+  CurrentPlayerIndex := FileSize(F);
+  Seek(F, CurrentPlayerIndex);
+  Write(F, P);
+  Close(F);
+end;
+
+{ Handles title login / character creation; returns False if login fails }
+{ Shared helper used by both the Login Screen (top 5) and Town Hall of Fame (top 15) }
+procedure PrintTopRankings(MaxRows: Integer; const HighlightName: string);
+const
+  MAX_ROSTER = 100;
+var
+  F: file of TPlayer;
+  Roster: array[1..MAX_ROSTER] of TPlayer;
+  Temp: TPlayer;
+  Count, i, j, DisplayLimit: Integer;
+begin
+  Assign(F, SAVE_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult <> 0 then
+  begin
+    TextColor(DarkGray);
+    WriteLn('  (No champions yet—claim the throne!)');
+    TextColor(LightGray);
+    Exit;
+  end;
+
+  Count := 0;
+  while (not Eof(F)) and (Count < MAX_ROSTER) do
+  begin
+    Inc(Count);
+    Read(F, Roster[Count]);
+  end;
+  Close(F);
+
+  if Count = 0 then
+  begin
+    TextColor(DarkGray);
+    WriteLn('  (No champions yet—claim the throne!)');
+    TextColor(LightGray);
+    Exit;
+  end;
+
+  { Sort descending by Level, then XP }
+  for i := 1 to Count - 1 do
+  begin
+    for j := i + 1 to Count do
+    begin
+      if (Roster[j].Level > Roster[i].Level) or
+         ((Roster[j].Level = Roster[i].Level) and (Roster[j].XP > Roster[i].XP)) then
+      begin
+        Temp := Roster[i];
+        Roster[i] := Roster[j];
+        Roster[j] := Temp;
+      end;
+    end;
+  end;
+
+  TextColor(LightCyan);
+  WriteLn('Rank  Warrior                 Lvl     XP         Weapon');
+  TextColor(DarkGray);
+  WriteLn('-------------------------------------------------------------------');
+
+  DisplayLimit := Count;
+  if DisplayLimit > MaxRows then
+    DisplayLimit := MaxRows;
+
+  for i := 1 to DisplayLimit do
+  begin
+    if (HighlightName <> '') and
+       (UpperCase(Trim(Roster[i].Name)) = UpperCase(Trim(HighlightName))) then
+      TextColor(LightGreen)
+    else if i = 1 then
+      TextColor(Yellow)
+    else
+      TextColor(LightGray);
+
+    WriteLn('#', i:2, '   ',
+            Roster[i].Name:22, '  ',
+            Roster[i].Level:3, '  ',
+            Roster[i].XP:9, '   ',
+            WEAPONS[Roster[i].WeaponIndex].Name);
+  end;
+
+  TextColor(LightGray);
+end;
+
+procedure ShowLeaderboard(const CurrentPlayerName: string);
+begin
+  ClrScr;
+  TextColor(Yellow);
+  WriteLn('===================================================================');
+  WriteLn('                  HALL OF FAME - HEROES OF SOUTH RIDGE             ');
+  WriteLn('===================================================================');
+  PrintTopRankings(15, CurrentPlayerName);
+  Pause;
+end;
+
+function LoginPlayer(var P: TPlayer): Boolean;
+var
+  InputName: string[30];
+  InputPin: string[16];
+  ExistingRec: TPlayer;
+  FoundIdx: LongInt;
+  Attempts: Integer;
+  Choice: Char;
+begin
+  LoginPlayer := False;
+  CurrentPlayerIndex := -1;
+
+  repeat
+    ClrScr;
+    TextColor(LightRed);
+    WriteLn('===================================================================');
+    WriteLn('               REALM OF THE ASHEN WYRM - SOUTH RIDGE               ');
+    WriteLn('===================================================================');
+    TextColor(Yellow);
+    WriteLn('--- TOP WARRIORS OF THE REALM ---');
+    PrintTopRankings(5, '');
+    WriteLn;
+    TextColor(LightGray);
+    Write('Enter your warrior''s name (or blank to quit): ');
+    TextColor(White);
+    ReadLn(InputName);
+    InputName := Trim(InputName);
+    TextColor(LightGray);
+
+    if InputName = '' then
+      Exit;
+
+    FoundIdx := FindPlayerByName(InputName, ExistingRec);
+
+    if FoundIdx >= 0 then
+    begin
+      Attempts := 0;
+      repeat
+        Inc(Attempts);
+        Write('Enter PIN for ', ExistingRec.Name, ': ');
+        TextColor(White);
+        ReadLn(InputPin);
+        TextColor(LightGray);
+
+        if Trim(InputPin) = ExistingRec.Pin then
+        begin
+          P := ExistingRec;
+          CurrentPlayerIndex := FoundIdx;
+          TextColor(LightGreen);
+          WriteLn;
+          WriteLn('Welcome back, ', P.Name, ' (Level ', P.Level, ')!');
+          TextColor(LightGray);
+          Pause;
+          LoginPlayer := True;
+          Exit;
+        end
+        else
+        begin
+          TextColor(Red);
+          WriteLn('Incorrect PIN (', Attempts, '/3).');
+          TextColor(LightGray);
+        end;
+      until Attempts >= 3;
+
+      WriteLn('Too many failed PIN attempts. Disconnecting.');
+      Delay(1000);
+      Exit;
+    end
+    else
+    begin
+      WriteLn;
+      TextColor(Yellow);
+      Write('No warrior named "', InputName, '" exists. Create new character? [Y/N]: ');
+      TextColor(LightGray);
+      Choice := UpCase(ReadKey);
+      WriteLn(Choice);
+
+      if Choice = 'Y' then
+      begin
+        CreateNewCharacter(P, InputName);
+        TextColor(LightGreen);
+        WriteLn;
+        WriteLn('Character created! Entering South Ridge...');
+        TextColor(LightGray);
+        Pause;
+        LoginPlayer := True;
+        Exit;
+      end;
+    end;
+  until False;
 end;
 
 procedure ShowStats(const P: TPlayer);
@@ -274,7 +507,6 @@ begin
     end;
 
     P.MP := P.MP - SKILLS[Pick].MPCost;
-    { Scale skill power with both base power and player level }
     EffectAmt := SKILLS[Pick].Power + Random(P.Level * 4 + 1);
 
     if SKILLS[Pick].IsHeal then

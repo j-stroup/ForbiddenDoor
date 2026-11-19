@@ -113,8 +113,8 @@ begin
       1: begin
            WriteLn('Torchlight flickers across damp limestone walls lined with carved skulls.');
            if not CryptBattle(P, 'Risen Gravewarden',
-              28 + (P.Level * 18),
-              6 + (P.Level * 3),
+              35 + (P.Level * 22),
+              7 + (P.Level * 4),
               70 * P.Level,
               60 * P.Level) then
              Exit;
@@ -149,8 +149,8 @@ begin
 
            WriteLn;
            if not CryptBattle(P, 'Bone Sentinel',
-              42 + (P.Level * 24),
-              8 + (P.Level * 4),
+              52 + (P.Level * 30),
+              10 + (P.Level * 5),
               110 * P.Level,
               90 * P.Level) then
              Exit;
@@ -159,8 +159,8 @@ begin
       3: begin
            WriteLn('Black ankle-deep water covers the flagstones. Cold mist clings to your armor.');
            if not CryptBattle(P, 'Wraith of South Ridge',
-              60 + (P.Level * 32),
-              10 + (P.Level * 5),
+              75 + (P.Level * 40),
+              13 + (P.Level * 6),
               160 * P.Level,
               130 * P.Level) then
              Exit;
@@ -171,8 +171,8 @@ begin
            WriteLn('You enter the Inner Sanctum. An obsidian sarcophagus cracks open!');
            TextColor(LightGray);
            if not CryptBattle(P, 'Malakor, Lord of the Crypt',
-              85 + (P.Level * 42) + (P.Level * P.Level * 2),
-              13 + (P.Level * 6),
+              110 + (P.Level * 52) + (P.Level * P.Level * 3),
+              16 + (P.Level * 8),
               320 * P.Level,
               260 * P.Level) then
              Exit;

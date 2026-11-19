@@ -41,6 +41,7 @@ begin
   WriteLn('[G] Old Cemetery (Explore)');
   WriteLn('[C] Creek Footbridge (Explore)');
   WriteLn('[V] View Warrior Stats');
+  WriteLn('[R] Hall of Fame (Leaderboard)');
   WriteLn('[Q] Save & Quit');
   WriteLn;
   Write('Your choice: ');
@@ -58,6 +59,7 @@ begin
     'G': VisitCemetery(Hero);
     'C': VisitFootbridge;
     'V': ShowStats(Hero);
+    'R': ShowLeaderboard(Hero.Name);
     'Q': begin
            SavePlayer(Hero);
            QuitGame := True;
@@ -69,21 +71,13 @@ begin
   Randomize;
   QuitGame := False;
 
-  if LoadPlayer(Hero) then
-  begin
-    ClrScr;
-    TextColor(LightGreen);
-    WriteLn('Welcome back, ', Hero.Name, ' (Level ', Hero.Level, ')!');
-    TextColor(LightGray);
-    Pause;
-  end
-  else
-    InitPlayer(Hero);
+  if not LoginPlayer(Hero) then
+    Halt; { Cleanly exits and drops the SSH/Telnet session on cancel or failed PIN }
 
   repeat
     TownMenu;
   until QuitGame;
 
   ClrScr;
-  WriteLn('Progress saved to ', SAVE_FILE, '. Safe travels, ', Hero.Name, '.');
+  WriteLn('Progress saved. Safe travels, ', Hero.Name, '.');
 end.

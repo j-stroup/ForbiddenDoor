@@ -1,0 +1,26 @@
+# Free Pascal intermediate unit and object files
+*.o
+*.ppu
+*.a
+*.or
+*.res
+*.rsj
+*.compiled
+
+# Compiled executables (Windows and Linux/macOS)
+*.exe
+wyrm
+
+# Editor / IDE backups
+*.bak
+*~
+backup/
+lib/
+
+# Live game save data and rumor board (keeps local test saves off GitHub)
+PLAYER.DAT
+player.dat
+*.dat
+*.DAT
+RUMORS.TXT
+rumors.txt
