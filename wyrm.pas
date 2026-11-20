@@ -2,25 +2,11 @@
 program AshenWyrm;
 
 uses
-  Crt, GameTypes, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys;
+  Crt, SysUtils, GameTypes, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys;
 
 var
   Hero: TPlayer;
   QuitGame: Boolean;
-  UsedSysOpConsole: Boolean;
-
-{ Pads a string on the right with spaces so two-column dividers stay aligned }
-function PadRight(const S: string; Width: Integer): string;
-var
-  Res: string;
-begin
-  Res := S;
-  while Length(Res) < Width do
-    Res := Res + ' ';
-  if Length(Res) > Width then
-    Res := Copy(Res, 1, Width);
-  PadRight := Res;
-end;
 
 { Prints one paired row of the two-column town menu with highlighted hotkeys }
 procedure PrintDualRow(LeftKey: Char; const LeftLabel: string;
@@ -87,7 +73,7 @@ begin
     TextColor(LightGreen)
   else
     TextColor(Red);
-  StatusLine := 'Fights: ' + Chr(Ord('0') + Hero.FightsLeft);
+  StatusLine := 'Fights: ' + IntToStr(Hero.FightsLeft);
   Write(PadRight(StatusLine, 12));
 
   TextColor(DarkGray);
@@ -121,7 +107,7 @@ begin
   TextColor(LightGray);
   Write('Command [W,A,T,B,I,H,P / F,G,C,D,V,R,Q]: ');
 
-  Choice := UpCase(ReadKey);
+  Choice := UpCase(GetKey);
   WriteLn(Choice);
 
   case Choice of
@@ -139,9 +125,9 @@ begin
     'V': ShowStats(Hero);
     'R': ShowLeaderboard(Hero.Name);
     '~': begin
-           if not UsedSysOpConsole then
+           if not Hero.SysOpDone then
            begin
-             UsedSysOpConsole := True;
+             Hero.SysOpDone := True;
              Inc(Hero.FightsLeft);
              SavePlayer(Hero);
              ClrScr;
@@ -163,7 +149,6 @@ end;
 begin
   Randomize;
   QuitGame := False;
-  UsedSysOpConsole := False;
 
   if not LoginPlayer(Hero) then
     Halt;

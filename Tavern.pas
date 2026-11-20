@@ -4,7 +4,7 @@ unit Tavern;
 interface
 
 uses
-  Crt, GameTypes;
+  Crt, SysUtils, GameTypes;
 
 procedure VisitTavern(var P: TPlayer);
 
@@ -27,29 +27,31 @@ procedure EnsureRumorFile;
 var
   F: Text;
 begin
-  Assign(F, RUMOR_FILE);
-  {$I-} Reset(F); {$I+}
-  if IOResult = 0 then
-  begin
-    Close(F);
-    Exit; { File already exists, nothing to do }
-  end;
+  { Only create the file when it truly is missing; never wipe an existing wall }
+  if FileExists(RUMOR_FILE) then
+    Exit;
 
-  { File is missing, so create it with initial tavern gossip }
-  Rewrite(F);
+  Assign(F, RUMOR_FILE);
+  {$I-} Rewrite(F); {$I+}
+  if IOResult <> 0 then
+    Exit;
   WriteLn(F, 'Barkeep: Word is a massive wyrm nests deep beyond the northern ridge...');
   WriteLn(F, 'Old Pritchard: I swear I saw 10,000 crows wearing a wool trenchcoat.');
-  WriteLn(F, 'Traveller: Keep your gold in the South Ridge vault—bandits love unconscious heroes.');
+  WriteLn(F, 'Traveller: Keep your gold in the South Ridge vault - bandits love unconscious heroes.');
   Close(F);
 end;
 
-{ Reads all lines from RUMORS.TXT and lets the player append a new one }
+{ Shows the newest RUMORS_SHOWN lines of RUMORS.TXT and lets the player append one }
 procedure RumorBoard(const P: TPlayer);
+const
+  RUMORS_SHOWN = 15;
 var
   F: Text;
   LineBuf: string;
-  Msg: string[70];
+  Msg: string;
   Choice: Char;
+  Recent: array[0..RUMORS_SHOWN - 1] of string;
+  Total, i, First, Shown: LongInt;
 begin
   EnsureRumorFile;
 
@@ -60,39 +62,67 @@ begin
     TextColor(LightGray);
     WriteLn;
 
-    { Open the text file for reading from line 1 }
+    { Keep only the newest lines in a small ring buffer so the wall fits on screen }
+    Total := 0;
     Assign(F, RUMOR_FILE);
-    Reset(F);
-    while not Eof(F) do
+    {$I-} Reset(F); {$I+}
+    if IOResult = 0 then
     begin
-      ReadLn(F, LineBuf);
-      WriteLn(' - ', LineBuf);
+      while not Eof(F) do
+      begin
+        ReadLn(F, LineBuf);
+        Recent[Total mod RUMORS_SHOWN] := LineBuf;
+        Inc(Total);
+      end;
+      Close(F);
     end;
-    Close(F);
+
+    if Total > RUMORS_SHOWN then
+    begin
+      First := Total - RUMORS_SHOWN;
+      Shown := RUMORS_SHOWN;
+    end
+    else
+    begin
+      First := 0;
+      Shown := Total;
+    end;
+
+    if Total = 0 then
+      WriteLn(' (The wall is bare.)');
+    for i := First to First + Shown - 1 do
+      WriteLn(' - ', Recent[i mod RUMORS_SHOWN]);
 
     WriteLn;
     TextColor(Yellow);
     Write('[W]rite a message on the wall, or [B]ack to tavern? ');
     TextColor(LightGray);
-    Choice := UpCase(ReadKey);
+    Choice := UpCase(GetKey);
     WriteLn(Choice);
 
     if Choice = 'W' then
     begin
       WriteLn;
       Write('Carve your message (max 70 chars, blank to cancel): ');
-      ReadLn(Msg);
+      Msg := Trim(ReadInput(70, False));
 
       if Msg <> '' then
       begin
         { Open the existing text file and move the cursor to the very end }
         Assign(F, RUMOR_FILE);
-        Append(F);
-        WriteLn(F, P.Name, ' (Lvl ', P.Level, '): ', Msg);
-        Close(F);
-
-        TextColor(LightGreen);
-        WriteLn('Your words are carved into the oak wall.');
+        {$I-} Append(F); {$I+}
+        if IOResult = 0 then
+        begin
+          WriteLn(F, P.Name, ' (Lvl ', P.Level, '): ', Msg);
+          Close(F);
+          TextColor(LightGreen);
+          WriteLn('Your words are carved into the oak wall.');
+        end
+        else
+        begin
+          TextColor(LightRed);
+          WriteLn('Someone is already carving at the wall. Try again in a moment.');
+        end;
         TextColor(LightGray);
         Pause;
       end;
@@ -103,14 +133,14 @@ end;
 procedure RunTavernBrawl(var P: TPlayer);
 var
   OpponentName: string[30];
-  OppHP, OppAttack, GoldPot, XPPot: Integer;
-  PlayerDmg, OppDmg: Integer;
+  OppHP, OppAttack, GoldPot, XPPot: LongInt;
+  PlayerDmg, OppDmg: LongInt;
   Action: Char;
 begin
   ClrScr;
   if P.TavernDone then
   begin
-    WriteLn('The pit is empty for tonight. Rest at the Inn before challenging again.');
+    WriteLn('The pit is empty for tonight. Come back tomorrow for a new champion.');
     Pause;
     Exit;
   end;
@@ -118,10 +148,10 @@ begin
   OpponentName := BRAWLERS[Random(6) + 1];
 
   { Tougher than a normal forest monster, but beatable with good tactics/skills }
-  OppHP := 45 + (P.Level * 36) + (P.Level * P.Level * 3);
-  OppAttack := 9 + (P.Level * 7);
-  GoldPot := 130 * P.Level;
-  XPPot := 105 * P.Level;
+  OppHP := 45 + (LongInt(P.Level) * 36) + (LongInt(P.Level) * P.Level * 3);
+  OppAttack := 9 + (LongInt(P.Level) * 7);
+  GoldPot := 130 * LongInt(P.Level);
+  XPPot := 105 * LongInt(P.Level);
 
   TextColor(LightRed);
   WriteLn('=== THE TAVERN PIT ===');
@@ -134,7 +164,7 @@ begin
   Write('Step into the ring? [Y/N]: ');
   TextColor(LightGray);
 
-  Action := UpCase(ReadKey);
+  Action := UpCase(GetKey);
   WriteLn(Action);
 
   if Action <> 'Y' then
@@ -154,7 +184,7 @@ begin
     WriteLn;
     WriteLn(P.Name, ' HP: ', P.HP, '  |  ', OpponentName, ' HP: ', OppHP);
     Write('[A]ttack or [F]orfeit? ');
-    Action := UpCase(ReadKey);
+    Action := UpCase(GetKey);
     WriteLn(Action);
 
     if Action = 'A' then
@@ -190,7 +220,7 @@ begin
   begin
     TextColor(Red);
     WriteLn('LIGHTS OUT! ', OpponentName, ' knocks you cold.');
-    WriteLn('You wake up in the alley behind the tavern—your pockets picked completely clean!');
+    WriteLn('You wake up in the alley behind the tavern - your pockets picked completely clean!');
     P.HP := 1;
     P.Gold := 0;
   end
@@ -199,7 +229,7 @@ begin
     TextColor(Yellow);
     WriteLn('KNOCKOUT! The tavern erupts as ', OpponentName, ' hits the sawdust!');
     WriteLn('You collect the ', GoldPot, ' gold purse and gain ', XPPot, ' XP!');
-    P.Gold := P.Gold + GoldPot;
+    AddGold(P.Gold, GoldPot);
     P.XP := P.XP + XPPot;
   end;
 
@@ -229,7 +259,7 @@ begin
     WriteLn;
     Write('Your choice: ');
 
-    Choice := UpCase(ReadKey);
+    Choice := UpCase(GetKey);
     WriteLn(Choice);
 
     case Choice of

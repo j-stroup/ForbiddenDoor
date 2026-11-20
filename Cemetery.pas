@@ -12,10 +12,10 @@ implementation
 
 
 { Returns True if the player defeated the guardian, False if they fled or fell }
-function CryptBattle(var P: TPlayer; const EnemyName: string; EnemyHP, EnemyAtk, GoldReward, XPReward: Integer): Boolean;
+function CryptBattle(var P: TPlayer; const EnemyName: string; EnemyHP, EnemyAtk, GoldReward, XPReward: LongInt): Boolean;
 var
   Action: Char;
-  PlayerDmg, EnemyDmg: Integer;
+  PlayerDmg, EnemyDmg: LongInt;
   TurnTaken: Boolean;
 begin
   CryptBattle := False;
@@ -28,7 +28,7 @@ begin
     WriteLn;
     WriteLn(P.Name, ' HP: ', P.HP, ' | MP: ', P.MP, '  ||  ', EnemyName, ' HP: ', EnemyHP);
     Write('[A]ttack, [S]kill, or [F]lee Crypt? ');
-    Action := UpCase(ReadKey);
+    Action := UpCase(GetKey);
     WriteLn(Action);
 
     if Action = 'A' then
@@ -82,7 +82,7 @@ begin
 
   TextColor(Yellow);
   WriteLn(EnemyName, ' crumbles to dust! You loot ', GoldReward, ' gold and ', XPReward, ' XP.');
-  P.Gold := P.Gold + GoldReward;
+  AddGold(P.Gold, GoldReward);
   P.XP := P.XP + XPReward;
   SavePlayer(P);
   TextColor(LightGray);
@@ -113,25 +113,25 @@ begin
       1: begin
            WriteLn('Torchlight flickers across damp limestone walls lined with carved skulls.');
            if not CryptBattle(P, 'Risen Gravewarden',
-              35 + (P.Level * 22),
-              7 + (P.Level * 4),
-              70 * P.Level,
-              60 * P.Level) then
+              35 + (LongInt(P.Level) * 22),
+              7 + (LongInt(P.Level) * 4),
+              70 * LongInt(P.Level),
+              60 * LongInt(P.Level)) then
              Exit;
          end;
 
       2: begin
            WriteLn('Rows of sealed clay urns line this narrow vault.');
            Write('Smash a dusty urn before moving on? [Y/N]: ');
-           Choice := UpCase(ReadKey);
+           Choice := UpCase(GetKey);
            WriteLn(Choice);
 
            if Choice = 'Y' then
            begin
              if Random(2) = 0 then
              begin
-               BonusGold := 80 * P.Level;
-               P.Gold := P.Gold + BonusGold;
+               BonusGold := 80 * LongInt(P.Level);
+               AddGold(P.Gold, BonusGold);
                TextColor(Yellow);
                WriteLn('Jackpot! Ancient silver coins spill out (+', BonusGold, ' gold)!');
              end
@@ -149,20 +149,20 @@ begin
 
            WriteLn;
            if not CryptBattle(P, 'Bone Sentinel',
-              52 + (P.Level * 30),
-              10 + (P.Level * 5),
-              110 * P.Level,
-              90 * P.Level) then
+              52 + (LongInt(P.Level) * 30),
+              10 + (LongInt(P.Level) * 5),
+              110 * LongInt(P.Level),
+              90 * LongInt(P.Level)) then
              Exit;
          end;
 
       3: begin
            WriteLn('Black ankle-deep water covers the flagstones. Cold mist clings to your armor.');
            if not CryptBattle(P, 'Wraith of South Ridge',
-              75 + (P.Level * 40),
-              13 + (P.Level * 6),
-              160 * P.Level,
-              130 * P.Level) then
+              75 + (LongInt(P.Level) * 40),
+              13 + (LongInt(P.Level) * 6),
+              160 * LongInt(P.Level),
+              130 * LongInt(P.Level)) then
              Exit;
          end;
 
@@ -171,10 +171,10 @@ begin
            WriteLn('You enter the Inner Sanctum. An obsidian sarcophagus cracks open!');
            TextColor(LightGray);
            if not CryptBattle(P, 'Malakor, Lord of the Crypt',
-              110 + (P.Level * 52) + (P.Level * P.Level * 3),
-              16 + (P.Level * 8),
-              320 * P.Level,
-              260 * P.Level) then
+              110 + (LongInt(P.Level) * 52) + (LongInt(P.Level) * P.Level * 3),
+              16 + (LongInt(P.Level) * 8),
+              320 * LongInt(P.Level),
+              260 * LongInt(P.Level)) then
              Exit;
 
            WriteLn;
@@ -191,7 +191,7 @@ begin
     TextColor(LightCyan);
     Write('Descend into Chamber ', Room + 1, ', or [R]etreat to the surface? [D/R]: ');
     TextColor(LightGray);
-    Choice := UpCase(ReadKey);
+    Choice := UpCase(GetKey);
     WriteLn(Choice);
 
     if Choice = 'R' then
@@ -208,7 +208,6 @@ end;
 
 procedure VisitCemetery(var P: TPlayer);
 var
-  PortalRoll: Integer;
   Choice: Char;
 begin
   ClrScr;
@@ -219,32 +218,52 @@ begin
   WriteLn('You approach the heavy stone crypt at the far end of the grounds...');
   WriteLn;
 
-  { 1 out of 5 chance (20%) that the portal is open }
-  PortalRoll := Random(5) + 1;
-
-  if PortalRoll = 1 then
+  { The portal is rolled once per day (20% chance), so re-entering cannot reroll it }
+  if P.CryptState = CRYPT_UNROLLED then
   begin
-    TextColor(LightMagenta);
-    WriteLn('A swirling violet portal hums inside the open crypt archway!');
-    TextColor(Yellow);
-    Write('Step through the portal into the Sunken Crypt? [Y/N]: ');
-    TextColor(LightGray);
-
-    Choice := UpCase(ReadKey);
-    WriteLn(Choice);
-
-    if Choice = 'Y' then
-      ExploreCrypt(P)
+    if Random(5) = 0 then
+      P.CryptState := CRYPT_OPEN
     else
+      P.CryptState := CRYPT_SEALED;
+    SavePlayer(P);
+  end;
+
+  case P.CryptState of
+    CRYPT_OPEN:
+      begin
+        TextColor(LightMagenta);
+        WriteLn('A swirling violet portal hums inside the open crypt archway!');
+        TextColor(Yellow);
+        Write('Step through the portal into the Sunken Crypt? [Y/N]: ');
+        TextColor(LightGray);
+
+        Choice := UpCase(GetKey);
+        WriteLn(Choice);
+
+        if Choice = 'Y' then
+        begin
+          P.CryptState := CRYPT_USED;
+          SavePlayer(P);
+          ExploreCrypt(P);
+        end
+        else
+        begin
+          WriteLn('You step back from the hum of arcane energy. It still swirls behind you.');
+          Pause;
+        end;
+      end;
+
+    CRYPT_USED:
+      begin
+        WriteLn('Scorch marks ring the archway where the portal collapsed behind you.');
+        WriteLn('Nothing more will stir here until tomorrow.');
+        Pause;
+      end;
+  else
     begin
-      WriteLn('You step back from the hum of arcane energy.');
+      WriteLn('The heavy iron doors are sealed cold and silent. No portal stirs today.');
       Pause;
     end;
-  end
-  else
-  begin
-    WriteLn('The heavy iron doors are sealed cold and silent. No portal stirs right now.');
-    Pause;
   end;
 end;
 

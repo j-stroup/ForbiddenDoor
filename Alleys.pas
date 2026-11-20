@@ -10,12 +10,9 @@ procedure VisitAlleys(var P: TPlayer);
 
 implementation
 
-var
-  UsedIronDoor: Boolean;
-
 procedure SecretIronDoor(var P: TPlayer);
 var
-  Code: string[30];
+  Code: string;
   Reward: LongInt;
 begin
   ClrScr;
@@ -27,29 +24,28 @@ begin
   WriteLn;
   Write('Speak password: ');
   TextColor(White);
-  ReadLn(Code);
-  Code := UpperCase(Trim(Code));
+  Code := UpperCase(Trim(ReadInput(30, False)));
   TextColor(LightGray);
   WriteLn;
 
-  if UsedIronDoor then
+  if P.IronDoorDone then
   begin
     WriteLn('The slot slams shut. "You already got yours tonight. Beat it."');
     Pause;
     Exit;
   end;
 
-  if (Code = 'u9ly') then
+  if Code = 'U9LY' then
   begin
-    UsedIronDoor := True;
-    Reward := 150 * P.Level;
-    P.Gold := P.Gold + Reward;
+    P.IronDoorDone := True;
+    Reward := 150 * LongInt(P.Level);
+    AddGold(P.Gold, Reward);
     TextColor(Yellow);
     WriteLn('The deadbolt clanks back. A gloved hand slips you a heavy pouch (+', Reward, ' gold).');
   end
-  else if Code = 'bryce' then
+  else if Code = 'BRYCE' then
   begin
-    UsedIronDoor := True;
+    P.IronDoorDone := True;
     P.Strength := P.Strength + 1;
     TextColor(LightGreen);
     WriteLn('A guy in a stained hoodie nods in respect and hands you a protein bar.');
@@ -57,8 +53,8 @@ begin
   end
   else if Code = '1993' then
   begin
-    UsedIronDoor := True;
-    Reward := 60 * P.Level;
+    P.IronDoorDone := True;
+    Reward := 60 * LongInt(P.Level);
     P.XP := P.XP + Reward;
     P.MP := P.MaxMP;
     TextColor(LightCyan);
@@ -74,19 +70,25 @@ begin
   Pause;
 end;
 
-procedure ScavengeAlley(var P: TPlayer; var Heat: Integer);
+{ Heat is saved on the player and only resets at midnight, so leaving and
+  re-entering the alleys no longer wipes it. High heat means every search
+  ends in thugs, which naturally caps how much a player can farm per day. }
+procedure ScavengeAlley(var P: TPlayer);
 var
-  Roll, Amt: Integer;
+  Roll, Heat: Integer;
+  Amt: LongInt;
 begin
-  Inc(Heat);
+  if P.AlleyHeat < 50 then
+    Inc(P.AlleyHeat);
+  Heat := P.AlleyHeat;
   Roll := (Random(100) + 1) + (Heat * 7);
 
   WriteLn;
   case Roll of
     1..18:
       begin
-        Amt := (Random(28) + 14) * P.Level;
-        P.Gold := P.Gold + Amt;
+        Amt := (Random(28) + 14) * LongInt(P.Level);
+        AddGold(P.Gold, Amt);
         TextColor(Yellow);
         WriteLn('Behind a collapsed brick stoop, you pry up a loose flagstone');
         WriteLn('and find a cutpurse''s stash (+', Amt, ' gold)!');
@@ -94,7 +96,7 @@ begin
 
     19..34:
       begin
-        Amt := (16 + Random(12)) * P.Level;
+        Amt := (16 + Random(12)) * LongInt(P.Level);
         P.XP := P.XP + Amt;
         TextColor(LightCyan);
         WriteLn('You overhear two smugglers arguing through a cellar grate and');
@@ -139,10 +141,10 @@ begin
           Amt := (P.Gold * (15 + Random(16))) div 100;
           if Amt < 1 then Amt := 1;
           P.Gold := P.Gold - Amt;
-          WriteLn('You check your belt—your purse is ', Amt, ' gold lighter!');
+          WriteLn('You check your belt - your purse is ', Amt, ' gold lighter!');
         end
         else
-          WriteLn('Jokes on him—your pockets are completely empty.');
+          WriteLn('Jokes on him - your pockets are completely empty.');
       end;
 
   else
@@ -182,15 +184,17 @@ begin
   WriteLn('--- Crooked Finger''s Bone Dice ---');
   TextColor(LightGray);
   WriteLn('A one-eyed gambler rattles yellowed bone dice in a leather cup.');
-  WriteLn('"Roll 7 or higher to win. Boxcars (12) pays TRIPLE! Max bet: ', MaxBet, '."');
+  WriteLn('"Roll 8 or higher to win. Boxcars (12) pays TRIPLE! Max bet: ', MaxBet, '."');
   Write('Enter wager (0 to walk away, Your gold: ', P.Gold, '): ');
 
-  {$I-} ReadLn(Bet); {$I+}
-  if (IOResult <> 0) or (Bet <= 0) then
+  if (not ReadNumber(9, Bet)) or (Bet <= 0) then
     Exit;
 
   if Bet > MaxBet then
+  begin
     Bet := MaxBet;
+    WriteLn('He slides some coins back. "House limit is ', MaxBet, '."');
+  end;
 
   if Bet > P.Gold then
   begin
@@ -207,13 +211,13 @@ begin
 
   if Total = 12 then
   begin
-    P.Gold := P.Gold + (Bet * 2);
+    AddGold(P.Gold, Bet * 2);
     TextColor(Yellow);
     WriteLn('BOXCARS! Crooked Finger curses under his breath and pays triple (+', Bet * 2, ' net gold)!');
   end
   else if Total >= 8 then
   begin
-    P.Gold := P.Gold + Bet;
+    AddGold(P.Gold, Bet);
     TextColor(LightGreen);
     WriteLn('High roll! You scoop up your winnings (+', Bet, ' net gold)!');
   end
@@ -239,7 +243,8 @@ end;
 
 procedure DrinkAlleyVial(var P: TPlayer; TonicCost: LongInt);
 var
-  Roll, Amt: Integer;
+  Roll: Integer;
+  Amt: LongInt;
 begin
   WriteLn;
   if P.Gold < TonicCost then
@@ -258,20 +263,20 @@ begin
         P.HP := P.MaxHP;
         P.MP := P.MaxMP;
         TextColor(LightGreen);
-        WriteLn('Bitter smoke burns your throat—then pure vigor surges! HP & MP FULL!');
+        WriteLn('Bitter smoke burns your throat - then pure vigor surges! HP & MP FULL!');
       end;
     36..60:
       begin
-        Amt := 30 * P.Level;
+        Amt := 30 * LongInt(P.Level);
         P.XP := P.XP + Amt;
         TextColor(LightCyan);
-        WriteLn('The world fractures into neon geometry—visions of combat tactics (+', Amt, ' XP)!');
+        WriteLn('The world fractures into neon geometry - visions of combat tactics (+', Amt, ' XP)!');
       end;
     61..78:
       begin
         P.MP := P.MaxMP;
         TextColor(LightMagenta);
-        WriteLn('Blue sparks crackle across your fingertips—MP completely restored!');
+        WriteLn('Blue sparks crackle across your fingertips - MP completely restored!');
       end;
     79..92:
       begin
@@ -283,8 +288,8 @@ begin
       end;
   else
     begin
-      Amt := 50 * P.Level;
-      P.Gold := P.Gold + Amt;
+      Amt := 50 * LongInt(P.Level);
+      AddGold(P.Gold, Amt);
       TextColor(Yellow);
       WriteLn('It tastes like turnip water, but you find ', Amt, ' gold coins glued to the bottom of the flask!');
     end;
@@ -298,10 +303,8 @@ end;
 procedure VisitAlleys(var P: TPlayer);
 var
   Choice: Char;
-  AlleyHeat: Integer;
   TonicCost: LongInt;
 begin
-  AlleyHeat := 0;
 
   repeat
     ClrScr;
@@ -314,19 +317,19 @@ begin
 
     TonicCost := 25 * P.Level;
 
-    WriteLn('[S] Scavenge the Alleys (Search crates & shadows - Heat: ', AlleyHeat, ')');
+    WriteLn('[S] Scavenge the Alleys (Search crates & shadows - Heat: ', P.AlleyHeat, ')');
     WriteLn('[G] Gamble at Bone Dice (High-risk street wager)');
     WriteLn('[V] Buy a Murky Alley Vial (', TonicCost, ' gold - Wild mystery brew)');
     WriteLn('[L] Return to Main Street');
     WriteLn;
     Write('Your choice: ');
 
-    Choice := UpCase(ReadKey);
+    Choice := UpCase(GetKey);
     WriteLn(Choice);
 
     case Choice of
       'I': SecretIronDoor(P); { Hidden Exitilus-style Easter egg }
-      'S': ScavengeAlley(P, AlleyHeat);
+      'S': ScavengeAlley(P);
       'G': PlayAlleyDice(P);
       'V': DrinkAlleyVial(P, TonicCost);
     end;

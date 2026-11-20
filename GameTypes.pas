@@ -4,10 +4,25 @@ unit GameTypes;
 interface
 
 uses
-  Crt, SysUtils;
+  Crt, SysUtils, md5;
 
 const
   SAVE_FILE = 'PLAYER.DAT';
+
+  { Hard ceiling for any gold balance so LongInt math can never wrap }
+  MAX_GOLD = 2000000000;
+
+  { Daily bank interest is 5%, but never more than this many gold per level }
+  MAX_INTEREST_PER_LEVEL = 200;
+
+  { Players idle at any prompt this long are disconnected (milliseconds) }
+  IDLE_TIMEOUT_MS = 300000;
+
+  { Crypt portal state for the current day }
+  CRYPT_UNROLLED = 0;
+  CRYPT_SEALED   = 1;
+  CRYPT_OPEN     = 2;
+  CRYPT_USED     = 3;
 
 type
   TItem = record
@@ -26,7 +41,7 @@ type
 
   TPlayer = record
     Name: string[30];
-    Pin: string[16];      { New: Simple character PIN for login }
+    Pin: string[32];          { Salted MD5 hash of the PIN, never the PIN itself }
     Level: Integer;
     XP: LongInt;
     HP, MaxHP: Integer;
@@ -40,6 +55,15 @@ type
     LastPlayDay: LongInt;
     WeaponIndex: Integer;
     ArmorIndex: Integer;
+    { Daily limits that must survive a reconnect }
+    SysOpDone: Boolean;
+    ConfessDone: Boolean;
+    IronDoorDone: Boolean;
+    PoorBoxDone: Boolean;
+    AlleyHeat: Integer;
+    CryptState: Byte;
+    { Bumped on every save; detects the same warrior playing on two nodes }
+    SaveCount: LongInt;
   end;
 
   TMonster = record
@@ -129,6 +153,11 @@ const
     (Name: 'The Ancient Ashen Wyrm';        HP: 2800; Attack: 218; GoldReward: 5200; XPReward: 4800)
   );
 
+function GetKey: Char;
+function ReadInput(MaxLen: Integer; Masked: Boolean): string;
+function ReadNumber(MaxDigits: Integer; var Value: LongInt): Boolean;
+function PadRight(const S: string; Width: Integer): string;
+procedure AddGold(var Balance: LongInt; Delta: LongInt);
 procedure Pause;
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 procedure SavePlayer(const P: TPlayer);
@@ -136,13 +165,119 @@ function LoginPlayer(var P: TPlayer): Boolean;
 procedure CheckDailyReset(var P: TPlayer);
 procedure ShowStats(const P: TPlayer);
 procedure ShowLeaderboard(const CurrentPlayerName: string);
-function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: Integer): Boolean;
+function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
 
 implementation
 
 var
   { Private to GameTypes: tracks which slot in PLAYER.DAT belongs to this session }
   CurrentPlayerIndex: LongInt;
+  { SaveCount we expect to find on disk; a mismatch means another node saved }
+  SessionSaveCount: LongInt;
+
+{ Waits for one key. Disconnects after IDLE_TIMEOUT_MS of silence.
+  Extended keys (arrows, F-keys) come back as #0; stray line feeds are ignored. }
+function GetKey: Char;
+var
+  Waited: LongInt;
+  Ch: Char;
+begin
+  repeat
+    Waited := 0;
+    while not KeyPressed do
+    begin
+      Delay(50);
+      Inc(Waited, 50);
+      if Waited >= IDLE_TIMEOUT_MS then
+      begin
+        WriteLn;
+        TextColor(LightRed);
+        WriteLn('You doze off on your feet. The town watch carts you home. (Idle disconnect)');
+        TextColor(LightGray);
+        Halt;
+      end;
+    end;
+
+    Ch := ReadKey;
+    if Ch = #0 then
+    begin
+      ReadKey; { Discard the scan code of an extended key }
+      Ch := #0;
+    end;
+  until Ch <> #10;
+
+  GetKey := Ch;
+end;
+
+{ Line input that only accepts printable ASCII, so nobody can inject
+  ANSI escape codes into names, PINs, or the rumor wall. }
+function ReadInput(MaxLen: Integer; Masked: Boolean): string;
+var
+  S: string;
+  Ch: Char;
+begin
+  S := '';
+  repeat
+    Ch := GetKey;
+    if (Ch = #8) or (Ch = #127) then
+    begin
+      if Length(S) > 0 then
+      begin
+        Delete(S, Length(S), 1);
+        Write(#8' '#8);
+      end;
+    end
+    else if (Ch >= ' ') and (Ch <= '~') and (Length(S) < MaxLen) then
+    begin
+      S := S + Ch;
+      if Masked then
+        Write('*')
+      else
+        Write(Ch);
+    end;
+  until Ch = #13;
+  WriteLn;
+  ReadInput := S;
+end;
+
+{ Reads a whole number; returns False for blank or non-numeric input.
+  Keep MaxDigits at 9 or less so the value always fits in a LongInt. }
+function ReadNumber(MaxDigits: Integer; var Value: LongInt): Boolean;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := Trim(ReadInput(MaxDigits, False));
+  Value := 0;
+  Code := 1;
+  if S <> '' then
+    Val(S, Value, Code);
+  ReadNumber := (S <> '') and (Code = 0);
+end;
+
+{ Pads a string on the right with spaces (or truncates it) to an exact width }
+function PadRight(const S: string; Width: Integer): string;
+var
+  Res: string;
+begin
+  Res := S;
+  while Length(Res) < Width do
+    Res := Res + ' ';
+  if Length(Res) > Width then
+    Res := Copy(Res, 1, Width);
+  PadRight := Res;
+end;
+
+{ Adds (or subtracts) gold while keeping the balance between 0 and MAX_GOLD }
+procedure AddGold(var Balance: LongInt; Delta: LongInt);
+begin
+  if (Delta > 0) and (Balance > MAX_GOLD - Delta) then
+    Balance := MAX_GOLD
+  else
+    Balance := Balance + Delta;
+  if Balance < 0 then
+    Balance := 0;
+end;
 
 procedure Pause;
 begin
@@ -150,40 +285,82 @@ begin
   TextColor(DarkGray);
   Write('[Press any key to continue]');
   TextColor(LightGray);
-  ReadKey;
+  GetKey;
 end;
 
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 begin
   { Steeper progression: Lvl 1->185, Lvl 2->540, Lvl 5->2825, Lvl 10->10400 }
-  XPForNextLevel := (LongInt(CurrentLevel) * CurrentLevel * 95) + (CurrentLevel * 90);
+  XPForNextLevel := (LongInt(CurrentLevel) * CurrentLevel * 95) + (LongInt(CurrentLevel) * 90);
 end;
 
-{ Overwrites ONLY this player's specific record slot in PLAYER.DAT }
+{ Salted hash so PLAYER.DAT never holds a readable PIN }
+function HashPin(const PlayerName, PinText: string): string;
+begin
+  HashPin := MD5Print(MD5String(UpperCase(Trim(PlayerName)) + ':' + PinText));
+end;
+
+{ Overwrites ONLY this player's specific record slot in PLAYER.DAT.
+  If another node saved this warrior since we last did, this session is
+  stale, so we disconnect instead of overwriting the newer progress. }
 procedure SavePlayer(const P: TPlayer);
 var
   F: file of TPlayer;
+  OnDisk, ToWrite: TPlayer;
   Retries: Integer;
+  Opened, ReadOK: Boolean;
 begin
   if CurrentPlayerIndex < 0 then
     Exit;
 
   Assign(F, SAVE_FILE);
   Retries := 0;
+  Opened := False;
 
   { Retry briefly if another concurrent player has PLAYER.DAT locked }
   repeat
     {$I-} Reset(F); {$I+}
     if IOResult = 0 then
+      Opened := True
+    else
     begin
-      Seek(F, CurrentPlayerIndex);
-      Write(F, P);
-      Close(F);
-      Exit;
+      Inc(Retries);
+      Delay(25);
     end;
-    Inc(Retries);
-    Delay(25);
-  until Retries >= 20;
+  until Opened or (Retries >= 20);
+
+  if not Opened then
+  begin
+    TextColor(LightRed);
+    WriteLn('*** WARNING: Your progress could not be saved (PLAYER.DAT is busy). ***');
+    TextColor(LightGray);
+    Exit;
+  end;
+
+  {$I-}
+  Seek(F, CurrentPlayerIndex);
+  Read(F, OnDisk);
+  {$I+}
+  ReadOK := IOResult = 0;
+
+  if (not ReadOK) or (OnDisk.SaveCount <> SessionSaveCount) or
+     (UpperCase(Trim(OnDisk.Name)) <> UpperCase(Trim(P.Name))) then
+  begin
+    Close(F);
+    WriteLn;
+    TextColor(LightRed);
+    WriteLn('*** This warrior is active on another node. This session has ended. ***');
+    TextColor(LightGray);
+    Halt;
+  end;
+
+  ToWrite := P;
+  Inc(SessionSaveCount);
+  ToWrite.SaveCount := SessionSaveCount;
+
+  Seek(F, CurrentPlayerIndex);
+  Write(F, ToWrite);
+  Close(F);
 end;
 
 { Searches PLAYER.DAT by Name; returns record index (0..N-1) or -1 if not found }
@@ -214,25 +391,34 @@ begin
   Close(F);
 end;
 
-{ Checks if the real-world calendar date has passed midnight since last reset }
+{ Checks if the real-world calendar date has changed since last reset }
 procedure CheckDailyReset(var P: TPlayer);
 var
   Today, Interest: LongInt;
 begin
   Today := Trunc(Date);
 
-  if Today > P.LastPlayDay then
+  { <> rather than > so a server clock moved backwards cannot freeze resets }
+  if Today <> P.LastPlayDay then
   begin
     P.LastPlayDay := Today;
     P.FightsLeft := 5;
     P.TavernDone := False;
     P.BridgeDone := False;
+    P.SysOpDone := False;
+    P.ConfessDone := False;
+    P.IronDoorDone := False;
+    P.PoorBoxDone := False;
+    P.AlleyHeat := 0;
+    P.CryptState := CRYPT_UNROLLED;
 
-    { Apply 5% daily bank interest once per active rollover }
-    Interest := (P.BankGold * 5) div 100;
+    { 5% daily interest, capped per level so balances cannot snowball }
+    Interest := P.BankGold div 20;
     if (P.BankGold > 0) and (Interest = 0) then
       Interest := 1;
-    P.BankGold := P.BankGold + Interest;
+    if Interest > MAX_INTEREST_PER_LEVEL * LongInt(P.Level) then
+      Interest := MAX_INTEREST_PER_LEVEL * LongInt(P.Level);
+    AddGold(P.BankGold, Interest);
 
     SavePlayer(P);
 
@@ -242,8 +428,8 @@ begin
     WriteLn('             A NEW DAWN BREAKS OVER SOUTH RIDGE            ');
     WriteLn('===========================================================');
     TextColor(LightGreen);
-    WriteLn('Your daily forest fights (5), Tavern Pit, and Creek');
-    WriteLn('Footbridge expedition have all been reset!');
+    WriteLn('Your daily forest fights (5), Tavern Pit, Creek Footbridge,');
+    WriteLn('crypt, chapel, and back alleys have all been reset!');
     if Interest > 0 then
       WriteLn('Your bank vault earned ', Interest, ' gold in overnight interest (Balance: ', P.BankGold, ').');
     TextColor(LightGray);
@@ -251,26 +437,42 @@ begin
   end;
 end;
 
-{ Appends a brand-new player record to the end of PLAYER.DAT }
-procedure CreateNewCharacter(var P: TPlayer; const ChosenName: string);
+{ Appends a brand-new player record to the end of PLAYER.DAT.
+  Returns False if the save file could not be opened safely. }
+function CreateNewCharacter(var P: TPlayer; const ChosenName: string): Boolean;
 var
   F: file of TPlayer;
-  NewPin: string[16];
+  NewPin: string;
+  Existing: TPlayer;
+  Retries: Integer;
+  Opened: Boolean;
 begin
+  CreateNewCharacter := False;
   WriteLn;
   TextColor(DarkGray);
-  WriteLn('(Tip: Pick a simple game PIN—never reuse a real password over Telnet.)');
+  WriteLn('(Tip: Pick a simple game PIN - never reuse a real password over Telnet.)');
   TextColor(Yellow);
   repeat
     Write('Create a PIN for ', ChosenName, ' (4-16 chars): ');
     TextColor(White);
-    ReadLn(NewPin);
-    NewPin := Trim(NewPin);
+    NewPin := Trim(ReadInput(16, True));
     TextColor(Yellow);
   until Length(NewPin) >= 4;
+  TextColor(LightGray);
 
+  { Someone may have claimed the name while we were typing the PIN }
+  if FindPlayerByName(ChosenName, Existing) >= 0 then
+  begin
+    TextColor(LightRed);
+    WriteLn('Another warrior just claimed the name "', ChosenName, '". Pick another.');
+    TextColor(LightGray);
+    Pause;
+    Exit;
+  end;
+
+  FillChar(P, SizeOf(P), 0);
   P.Name := ChosenName;
-  P.Pin := NewPin;
+  P.Pin := HashPin(ChosenName, NewPin);
   P.Level := 1;
   P.XP := 0;
   P.MaxHP := 50;
@@ -286,94 +488,130 @@ begin
   P.LastPlayDay := Trunc(Date);
   P.WeaponIndex := 1;
   P.ArmorIndex := 1;
+  P.CryptState := CRYPT_UNROLLED;
+  P.SaveCount := 0;
 
   Assign(F, SAVE_FILE);
-  {$I-} Reset(F); {$I+}
-  if IOResult <> 0 then
-    Rewrite(F); { First character ever created on this server }
+
+  { Only create a fresh file when none exists; never truncate a busy one }
+  if not FileExists(SAVE_FILE) then
+  begin
+    {$I-} Rewrite(F); {$I+}
+    Opened := IOResult = 0;
+  end
+  else
+  begin
+    Retries := 0;
+    repeat
+      {$I-} Reset(F); {$I+}
+      Opened := IOResult = 0;
+      if not Opened then
+      begin
+        Inc(Retries);
+        Delay(25);
+      end;
+    until Opened or (Retries >= 20);
+  end;
+
+  if not Opened then
+  begin
+    TextColor(LightRed);
+    WriteLn('The town registry is busy. Please try again in a moment.');
+    TextColor(LightGray);
+    Pause;
+    Exit;
+  end;
 
   CurrentPlayerIndex := FileSize(F);
+  SessionSaveCount := 0;
   Seek(F, CurrentPlayerIndex);
   Write(F, P);
   Close(F);
+  CreateNewCharacter := True;
 end;
 
-{ Handles title login / character creation; returns False if login fails }
-{ Shared helper used by both the Login Screen (top 5) and Town Hall of Fame (top 15) }
+{ True when A should be listed above B in the rankings }
+function RanksAbove(const A, B: TPlayer): Boolean;
+begin
+  RanksAbove := (A.Level > B.Level) or ((A.Level = B.Level) and (A.XP > B.XP));
+end;
+
+{ Shared helper used by both the Login Screen (top 5) and Town Hall of Fame (top 15).
+  Streams every record and keeps only the top rows, so any number of players works. }
 procedure PrintTopRankings(MaxRows: Integer; const HighlightName: string);
 const
-  MAX_ROSTER = 100;
+  MAX_SHOWN = 15;
 var
   F: file of TPlayer;
-  Roster: array[1..MAX_ROSTER] of TPlayer;
-  Temp: TPlayer;
-  Count, i, j, DisplayLimit: Integer;
+  Top: array[1..MAX_SHOWN] of TPlayer;
+  Rec: TPlayer;
+  Count, i, Slot: Integer;
+  WeaponName: string;
 begin
+  if MaxRows > MAX_SHOWN then
+    MaxRows := MAX_SHOWN;
+
   Assign(F, SAVE_FILE);
   {$I-} Reset(F); {$I+}
   if IOResult <> 0 then
   begin
     TextColor(DarkGray);
-    WriteLn('  (No champions yet—claim the throne!)');
+    WriteLn('  (No champions yet - claim the throne!)');
     TextColor(LightGray);
     Exit;
   end;
 
   Count := 0;
-  while (not Eof(F)) and (Count < MAX_ROSTER) do
+  while not Eof(F) do
   begin
-    Inc(Count);
-    Read(F, Roster[Count]);
+    Read(F, Rec);
+    Slot := Count + 1;
+    while (Slot > 1) and RanksAbove(Rec, Top[Slot - 1]) do
+      Dec(Slot);
+    if Slot <= MaxRows then
+    begin
+      if Count < MaxRows then
+        Inc(Count);
+      for i := Count downto Slot + 1 do
+        Top[i] := Top[i - 1];
+      Top[Slot] := Rec;
+    end;
   end;
   Close(F);
 
   if Count = 0 then
   begin
     TextColor(DarkGray);
-    WriteLn('  (No champions yet—claim the throne!)');
+    WriteLn('  (No champions yet - claim the throne!)');
     TextColor(LightGray);
     Exit;
   end;
 
-  { Sort descending by Level, then XP }
-  for i := 1 to Count - 1 do
-  begin
-    for j := i + 1 to Count do
-    begin
-      if (Roster[j].Level > Roster[i].Level) or
-         ((Roster[j].Level = Roster[i].Level) and (Roster[j].XP > Roster[i].XP)) then
-      begin
-        Temp := Roster[i];
-        Roster[i] := Roster[j];
-        Roster[j] := Temp;
-      end;
-    end;
-  end;
-
   TextColor(LightCyan);
-  WriteLn('Rank  Warrior                 Lvl     XP         Weapon');
+  WriteLn('Rank  ', PadRight('Warrior', 31), 'Lvl         XP   Weapon');
   TextColor(DarkGray);
-  WriteLn('-------------------------------------------------------------------');
+  WriteLn('----------------------------------------------------------------------------');
 
-  DisplayLimit := Count;
-  if DisplayLimit > MaxRows then
-    DisplayLimit := MaxRows;
-
-  for i := 1 to DisplayLimit do
+  for i := 1 to Count do
   begin
     if (HighlightName <> '') and
-       (UpperCase(Trim(Roster[i].Name)) = UpperCase(Trim(HighlightName))) then
+       (UpperCase(Trim(Top[i].Name)) = UpperCase(Trim(HighlightName))) then
       TextColor(LightGreen)
     else if i = 1 then
       TextColor(Yellow)
     else
       TextColor(LightGray);
 
+    if (Top[i].WeaponIndex >= 1) and (Top[i].WeaponIndex <= High(WEAPONS)) then
+      WeaponName := WEAPONS[Top[i].WeaponIndex].Name
+    else
+      WeaponName := '?';
+
     WriteLn('#', i:2, '   ',
-            Roster[i].Name:22, '  ',
-            Roster[i].Level:3, '  ',
-            Roster[i].XP:9, '   ',
-            WEAPONS[Roster[i].WeaponIndex].Name);
+            PadRight(Top[i].Name, 30), ' ',
+            Top[i].Level:3, '  ',
+            Top[i].XP:9, '   ',
+            WeaponName);
   end;
 
   TextColor(LightGray);
@@ -392,8 +630,8 @@ end;
 
 function LoginPlayer(var P: TPlayer): Boolean;
 var
-  InputName: string[30];
-  InputPin: string[16];
+  InputName: string;
+  InputPin: string;
   ExistingRec: TPlayer;
   FoundIdx: LongInt;
   Attempts: Integer;
@@ -401,12 +639,16 @@ var
 begin
   LoginPlayer := False;
   CurrentPlayerIndex := -1;
+  SessionSaveCount := 0;
 
   repeat
     ClrScr;
     TextColor(LightRed);
     WriteLn('===================================================================');
-    WriteLn('               REALM OF THE ASHEN WYRM - SOUTH RIDGE               ');
+    WriteLn('                         THE SOUTH RIDGE                           ');
+    WriteLn('                       -------------------                         ');
+    WriteLn('               This realm is still in development.                 ');
+    WriteLn('        It will occasionally be wiped after an update.             ');
     WriteLn('===================================================================');
     TextColor(Yellow);
     WriteLn('--- TOP WARRIORS OF THE REALM ---');
@@ -415,8 +657,7 @@ begin
     TextColor(LightGray);
     Write('Enter your warrior''s name (or blank to quit): ');
     TextColor(White);
-    ReadLn(InputName);
-    InputName := Trim(InputName);
+    InputName := Trim(ReadInput(30, False));
     TextColor(LightGray);
 
     if InputName = '' then
@@ -431,13 +672,14 @@ begin
         Inc(Attempts);
         Write('Enter PIN for ', ExistingRec.Name, ': ');
         TextColor(White);
-        ReadLn(InputPin);
+        InputPin := Trim(ReadInput(16, True));
         TextColor(LightGray);
 
-        if Trim(InputPin) = ExistingRec.Pin then
+        if HashPin(ExistingRec.Name, InputPin) = ExistingRec.Pin then
         begin
           P := ExistingRec;
           CurrentPlayerIndex := FoundIdx;
+          SessionSaveCount := ExistingRec.SaveCount;
           TextColor(LightGreen);
           WriteLn;
           WriteLn('Welcome back, ', P.Name, ' (Level ', P.Level, ')!');
@@ -452,6 +694,7 @@ begin
           TextColor(Red);
           WriteLn('Incorrect PIN (', Attempts, '/3).');
           TextColor(LightGray);
+          Delay(2000); { Slows down PIN guessing }
         end;
       until Attempts >= 3;
 
@@ -465,19 +708,21 @@ begin
       TextColor(Yellow);
       Write('No warrior named "', InputName, '" exists. Create new character? [Y/N]: ');
       TextColor(LightGray);
-      Choice := UpCase(ReadKey);
+      Choice := UpCase(GetKey);
       WriteLn(Choice);
 
       if Choice = 'Y' then
       begin
-        CreateNewCharacter(P, InputName);
-        TextColor(LightGreen);
-        WriteLn;
-        WriteLn('Character created! Entering South Ridge...');
-        TextColor(LightGray);
-        Pause;
-        LoginPlayer := True;
-        Exit;
+        if CreateNewCharacter(P, InputName) then
+        begin
+          TextColor(LightGreen);
+          WriteLn;
+          WriteLn('Character created! Entering South Ridge...');
+          TextColor(LightGray);
+          Pause;
+          LoginPlayer := True;
+          Exit;
+        end;
       end;
     end;
   until False;
@@ -501,9 +746,10 @@ begin
   Pause;
 end;
 
-function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: Integer): Boolean;
+function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
 var
-  i, Pick, EffectAmt: Integer;
+  i, Pick: Integer;
+  EffectAmt: LongInt;
   Choice: Char;
 begin
   CastCombatSkill := False;
@@ -526,7 +772,7 @@ begin
   WriteLn('[0] Cancel');
   Write('Choose skill: ');
 
-  Choice := ReadKey;
+  Choice := GetKey;
   WriteLn(Choice);
 
   if Choice in ['1'..'9'] then
@@ -554,9 +800,10 @@ begin
 
     if SKILLS[Pick].IsHeal then
     begin
-      P.HP := P.HP + EffectAmt;
-      if P.HP > P.MaxHP then
-        P.HP := P.MaxHP;
+      if EffectAmt > P.MaxHP - P.HP then
+        P.HP := P.MaxHP
+      else
+        P.HP := P.HP + EffectAmt;
       TextColor(LightGreen);
       WriteLn('You channel ', SKILLS[Pick].Name, ' and restore ', EffectAmt, ' HP!');
     end

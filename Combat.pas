@@ -14,8 +14,10 @@ implementation
 procedure FightMonster(var P: TPlayer);
 var
   Enemy: TMonster;
+  EnemyHP: LongInt;
   Action: Char;
-  PlayerDmg, EnemyDmg, MinMonsterIdx, MaxMonsterIdx: Integer;
+  PlayerDmg, EnemyDmg: LongInt;
+  MinMonsterIdx, MaxMonsterIdx: Integer;
   TurnTaken: Boolean;
 begin
   { Smoother sliding encounter bracket }
@@ -33,6 +35,7 @@ begin
   end;
 
   Enemy := MONSTERS[MinMonsterIdx + Random(MaxMonsterIdx - MinMonsterIdx + 1)];
+  EnemyHP := Enemy.HP;
 
   TextColor(LightRed);
   WriteLn('A ', Enemy.Name, ' emerges from the shadows!');
@@ -41,16 +44,16 @@ begin
   repeat
     TurnTaken := False;
     WriteLn;
-    WriteLn(P.Name, ' HP: ', P.HP, ' | MP: ', P.MP, '  ||  ', Enemy.Name, ' HP: ', Enemy.HP);
+    WriteLn(P.Name, ' HP: ', P.HP, ' | MP: ', P.MP, '  ||  ', Enemy.Name, ' HP: ', EnemyHP);
     Write('[A]ttack, [S]kill, or [R]un? ');
-    Action := UpCase(ReadKey);
+    Action := UpCase(GetKey);
     WriteLn(Action);
 
     if Action = 'A' then
     begin
       { Reliable base damage from Strength div 2 + random roll + weapon bonus }
       PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
-      Enemy.HP := Enemy.HP - PlayerDmg;
+      EnemyHP := EnemyHP - PlayerDmg;
       TextColor(LightGreen);
       WriteLn('You swing your ', WEAPONS[P.WeaponIndex].Name, ' for ', PlayerDmg, ' damage!');
       TextColor(LightGray);
@@ -58,7 +61,7 @@ begin
     end
     else if Action = 'S' then
     begin
-      TurnTaken := CastCombatSkill(P, Enemy.Name, Enemy.HP);
+      TurnTaken := CastCombatSkill(P, Enemy.Name, EnemyHP);
     end
     else if Action = 'R' then
     begin
@@ -68,7 +71,7 @@ begin
       Exit;
     end;
 
-    if TurnTaken and (Enemy.HP > 0) then
+    if TurnTaken and (EnemyHP > 0) then
     begin
       EnemyDmg := (Random(Enemy.Attack) + 1) - ARMORS[P.ArmorIndex].StatBonus;
       if EnemyDmg < 1 then
@@ -79,7 +82,7 @@ begin
       WriteLn('The ', Enemy.Name, ' hits you for ', EnemyDmg, ' damage!');
       TextColor(LightGray);
     end;
-  until (Enemy.HP <= 0) or (P.HP <= 0);
+  until (EnemyHP <= 0) or (P.HP <= 0);
 
   WriteLn;
   if P.HP <= 0 then
@@ -95,7 +98,7 @@ begin
   begin
     TextColor(Yellow);
     WriteLn('Victory! You claim ', Enemy.GoldReward, ' gold and ', Enemy.XPReward, ' XP.');
-    P.Gold := P.Gold + Enemy.GoldReward;
+    AddGold(P.Gold, Enemy.GoldReward);
     P.XP := P.XP + Enemy.XPReward;
 
     if P.XP >= XPForNextLevel(P.Level) then
@@ -112,12 +115,13 @@ end;
 
 procedure EnterForest(var P: TPlayer);
 var
-  EventRoll, FoundGold, TrapDmg: Integer;
+  EventRoll, TrapDmg: Integer;
+  FoundGold: LongInt;
 begin
   ClrScr;
   if P.FightsLeft <= 0 then
   begin
-    WriteLn('You are exhausted. Visit the Inn to rest for tomorrow.');
+    WriteLn('You are exhausted. Your legs will carry you again tomorrow.');
     Pause;
     Exit;
   end;
@@ -128,8 +132,8 @@ begin
   case EventRoll of
     1..10:
       begin
-        FoundGold := (Random(25) + 15) * P.Level;
-        P.Gold := P.Gold + FoundGold;
+        FoundGold := (Random(25) + 15) * LongInt(P.Level);
+        AddGold(P.Gold, FoundGold);
         TextColor(Yellow);
         WriteLn('You spot a half-buried iron lockbox beneath an old oak!');
         WriteLn('Inside, you find ', FoundGold, ' gold coins.');

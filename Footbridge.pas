@@ -30,15 +30,16 @@ const
 { Executes a single randomized exploration encounter along the trail }
 procedure TriggerTrailEvent(var P: TPlayer);
 var
-  Roll, GoldChange, HPChange, MPChange, XPChange: Integer;
+  Roll: Integer;
+  GoldChange, HPChange, MPChange, XPChange: LongInt;
 begin
   Roll := Random(100) + 1;
 
   case Roll of
     1..22: { 22% - Treasure / Creek Find }
       begin
-        GoldChange := (Random(30) + 15) * P.Level;
-        P.Gold := P.Gold + GoldChange;
+        GoldChange := (Random(30) + 15) * LongInt(P.Level);
+        AddGold(P.Gold, GoldChange);
         TextColor(Yellow);
         WriteLn('TREASURE! Half-buried in the creek mud, you pry open a rotted');
         WriteLn('leather satchel containing ', GoldChange, ' tarnished gold coins!');
@@ -59,7 +60,7 @@ begin
     39..54: { 16% - Footpad Bandits (Steals Pocket Gold) }
       begin
         TextColor(LightRed);
-        WriteLn('Crossbow bolts thud into a tree trunk beside your head—bandits!');
+        WriteLn('Crossbow bolts thud into a tree trunk beside your head - bandits!');
         if P.Gold > 0 then
         begin
           GoldChange := (P.Gold * (25 + Random(26))) div 100; { Steals 25% to 50% of pocket gold }
@@ -76,7 +77,7 @@ begin
 
     55..68: { 14% - Forgotten Shrine / Ancient Carving (Grants XP) }
       begin
-        XPChange := (18 + Random(15)) * P.Level;
+        XPChange := (18 + Random(15)) * LongInt(P.Level);
         P.XP := P.XP + XPChange;
         TextColor(LightCyan);
         WriteLn('You discover a moss-covered milestone carved with old frontier runes.');
@@ -118,9 +119,9 @@ begin
   else
     { 92..100 (9%) - Quiet Wilderness / Rare Relic Cache }
     begin
-      GoldChange := (Random(50) + 40) * P.Level;
-      XPChange := 25 * P.Level;
-      P.Gold := P.Gold + GoldChange;
+      GoldChange := (Random(50) + 40) * LongInt(P.Level);
+      XPChange := 25 * LongInt(P.Level);
+      AddGold(P.Gold, GoldChange);
       P.XP := P.XP + XPChange;
       TextColor(Yellow);
       WriteLn('RARE FIND! Inside a hollowed-out lightning-struck oak, you uncover');
@@ -166,7 +167,7 @@ begin
     Write('Which fork do you take? [L/R]: ');
 
     repeat
-      Dir := UpCase(ReadKey);
+      Dir := UpCase(GetKey);
     until Dir in ['L', 'R'];
     WriteLn(Dir);
     WriteLn;
@@ -204,19 +205,19 @@ begin
   if P.BridgeDone then
   begin
     WriteLn('Dusk settles thick over the creek. You have already explored the');
-    WriteLn('woods today—rest at the Inn before crossing again.');
+    WriteLn('woods today - come back tomorrow to cross again.');
     Pause;
     Exit;
   end;
 
   WriteLn('Unmarked trails wind deep into the timber beyond the far bank.');
-  WriteLn('Rumors speak of buried caches—as well as highwaymen and bog witches.');
+  WriteLn('Rumors speak of buried caches - as well as highwaymen and bog witches.');
   WriteLn;
   TextColor(Yellow);
   Write('Cross the footbridge and explore the woods? [Y/N]: ');
   TextColor(LightGray);
 
-  Choice := UpCase(ReadKey);
+  Choice := UpCase(GetKey);
   WriteLn(Choice);
 
   if Choice = 'Y' then

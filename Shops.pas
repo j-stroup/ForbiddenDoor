@@ -10,7 +10,6 @@ procedure VisitBank(var P: TPlayer);
 procedure VisitTrainer(var P: TPlayer);
 procedure VisitWeaponShop(var P: TPlayer);
 procedure VisitArmorShop(var P: TPlayer);
-procedure VisitHealer(var P: TPlayer);
 procedure RestAtInn(var P: TPlayer);
 
 implementation
@@ -26,7 +25,7 @@ begin
     WriteLn('--- First National Bank of South Ridge ---');
     TextColor(LightGray);
     WriteLn('Gold in Hand : ', P.Gold);
-    WriteLn('Gold in Vault: ', P.BankGold, ' (Earns 5% interest each night at the Inn)');
+    WriteLn('Gold in Vault: ', P.BankGold, ' (Earns 5% interest each day, capped by level)');
     WriteLn;
     WriteLn('[D] Deposit Gold');
     WriteLn('[W] Withdraw Gold');
@@ -35,21 +34,20 @@ begin
     WriteLn;
     Write('Your choice: ');
 
-    Choice := UpCase(ReadKey);
+    Choice := UpCase(GetKey);
     WriteLn(Choice);
 
     case Choice of
       'D': begin
              Write('Amount to deposit: ');
-             {$I-} ReadLn(Amount); {$I+}
-             if (IOResult <> 0) or (Amount <= 0) then
+             if (not ReadNumber(9, Amount)) or (Amount <= 0) then
                WriteLn('Invalid amount.')
              else if Amount > P.Gold then
                WriteLn('You don''t have that much gold on hand.')
              else
              begin
                P.Gold := P.Gold - Amount;
-               P.BankGold := P.BankGold + Amount;
+               AddGold(P.BankGold, Amount);
                SavePlayer(P);
                WriteLn('Deposited ', Amount, ' gold.');
              end;
@@ -57,15 +55,14 @@ begin
            end;
       'W': begin
              Write('Amount to withdraw: ');
-             {$I-} ReadLn(Amount); {$I+}
-             if (IOResult <> 0) or (Amount <= 0) then
+             if (not ReadNumber(9, Amount)) or (Amount <= 0) then
                WriteLn('Invalid amount.')
              else if Amount > P.BankGold then
                WriteLn('You don''t have that much in your vault.')
              else
              begin
                P.BankGold := P.BankGold - Amount;
-               P.Gold := P.Gold + Amount;
+               AddGold(P.Gold, Amount);
                SavePlayer(P);
                WriteLn('Withdrew ', Amount, ' gold.');
              end;
@@ -75,7 +72,7 @@ begin
              if P.Gold > 0 then
              begin
                WriteLn('Deposited ', P.Gold, ' gold into your vault.');
-               P.BankGold := P.BankGold + P.Gold;
+               AddGold(P.BankGold, P.Gold);
                P.Gold := 0;
                SavePlayer(P);
              end
@@ -127,7 +124,8 @@ end;
 
 procedure VisitWeaponShop(var P: TPlayer);
 var
-  i, Pick: Integer;
+  i: Integer;
+  Pick: LongInt;
 begin
   ClrScr;
   TextColor(LightCyan);
@@ -142,9 +140,8 @@ begin
   WriteLn('[ 0] Leave Shop');
   WriteLn;
   Write('Enter weapon number to buy: ');
-  {$I-} ReadLn(Pick); {$I+}
 
-  if (IOResult <> 0) or (Pick = 0) then
+  if (not ReadNumber(3, Pick)) or (Pick = 0) then
     Exit;
 
   if (Pick >= 2) and (Pick <= High(WEAPONS)) then
@@ -168,7 +165,8 @@ end;
 
 procedure VisitArmorShop(var P: TPlayer);
 var
-  i, Pick: Integer;
+  i: Integer;
+  Pick: LongInt;
 begin
   ClrScr;
   TextColor(LightCyan);
@@ -183,9 +181,8 @@ begin
   WriteLn('[ 0] Leave Shop');
   WriteLn;
   Write('Enter armor number to buy: ');
-  {$I-} ReadLn(Pick); {$I+}
 
-  if (IOResult <> 0) or (Pick = 0) then
+  if (not ReadNumber(3, Pick)) or (Pick = 0) then
     Exit;
 
   if (Pick >= 2) and (Pick <= High(ARMORS)) then
@@ -207,32 +204,6 @@ begin
   end;
 end;
 
-procedure VisitHealer(var P: TPlayer);
-var
-  HealCost: LongInt;
-begin
-  ClrScr;
-  { Scale healing cost gently with level so full heals stay meaningful }
-  HealCost := 15 + ((P.Level - 1) * 10);
-
-  TextColor(LightGreen);
-  WriteLn('--- The Apothecary (Fee: ', HealCost, ' gold) ---');
-  TextColor(LightGray);
-
-  if P.HP = P.MaxHP then
-    WriteLn('You are already at full health.')
-  else if P.Gold < HealCost then
-    WriteLn('You need ', HealCost, ' gold, but only have ', P.Gold, '.')
-  else
-  begin
-    P.Gold := P.Gold - HealCost;
-    P.HP := P.MaxHP;
-    SavePlayer(P);
-    WriteLn('Your wounds close. HP restored to ', P.MaxHP, '!');
-  end;
-  Pause;
-end;
-
 procedure RestAtInn(var P: TPlayer);
 var
   RoomCost: LongInt;
@@ -240,7 +211,7 @@ var
   Choice: Char;
 begin
   ClrScr;
-  RoomCost := 15 * P.Level;
+  RoomCost := 15 * LongInt(P.Level);
 
   TextColor(Yellow);
   WriteLn('--- The South Ridge Inn ---');
@@ -255,7 +226,7 @@ begin
   WriteLn;
   Write('Your choice: ');
 
-  Choice := UpCase(ReadKey);
+  Choice := UpCase(GetKey);
   WriteLn(Choice);
 
   if Choice = 'R' then

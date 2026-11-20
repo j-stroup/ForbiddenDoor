@@ -11,12 +11,14 @@ procedure VisitChapel(var P: TPlayer);
 implementation
 
 var
-  UsedConfessional: Boolean;
+  { Session-only on purpose: reconnecting refreshes the free heal words.
+    The gold and XP words use the saved daily flag P.ConfessDone instead. }
+  UsedHealWord: Boolean;
 
 procedure SecretConfessional(var P: TPlayer);
 var
-  Whisper: string[30];
-  Bonus: Integer;
+  Whisper: string;
+  Bonus: LongInt;
 begin
   ClrScr;
   TextColor(DarkGray);
@@ -27,12 +29,18 @@ begin
   WriteLn;
   Write('Whisper into the dark: ');
   TextColor(White);
-  ReadLn(Whisper);
-  Whisper := UpperCase(Trim(Whisper));
+  Whisper := UpperCase(Trim(ReadInput(30, False)));
   TextColor(LightGray);
   WriteLn;
 
-  if UsedConfessional then
+  if ((Whisper = 'XYZZY') or (Whisper = 'WORM')) and P.ConfessDone then
+  begin
+    WriteLn('Only wind whistles through the wooden lattice. Come back tomorrow.');
+    Pause;
+    Exit;
+  end;
+
+  if ((Whisper = 'IDDQD') or (Whisper = 'GREG')) and UsedHealWord then
   begin
     WriteLn('Only wind whistles through the wooden lattice. Come back another session.');
     Pause;
@@ -41,16 +49,16 @@ begin
 
   if Whisper = 'XYZZY' then
   begin
-    UsedConfessional := True;
-    Bonus := 120 * P.Level;
-    P.Gold := P.Gold + Bonus;
+    P.ConfessDone := True;
+    Bonus := 120 * LongInt(P.Level);
+    AddGold(P.Gold, Bonus);
     TextColor(Yellow);
     WriteLn('A hollow voice beyond the screen whispers: "Fool."');
     WriteLn(Bonus, ' ancient brass coins clatter onto your boots!');
   end
   else if Whisper = 'IDDQD' then
   begin
-    UsedConfessional := True;
+    UsedHealWord := True;
     P.HP := P.MaxHP;
     P.MP := P.MaxMP;
     TextColor(LightGreen);
@@ -58,8 +66,8 @@ begin
   end
   else if Whisper = 'WORM' then
   begin
-    UsedConfessional := True;
-    Bonus := 45 * P.Level;
+    P.ConfessDone := True;
+    Bonus := 45 * LongInt(P.Level);
     P.XP := P.XP + Bonus;
     TextColor(LightMagenta);
     WriteLn('Too many fingers tap against the cedar screen from the inside...');
@@ -67,7 +75,7 @@ begin
   end
   else if Whisper = 'GREG' then
   begin
-    UsedConfessional := True;
+    UsedHealWord := True;
     P.MP := P.MaxMP;
     TextColor(LightCyan);
     WriteLn('Six hands applaud slowly behind the curtain. Your MP is fully restored!');
@@ -86,7 +94,8 @@ procedure VisitChapel(var P: TPlayer);
 var
   Choice: Char;
   TitheCost: LongInt;
-  Roll, Amt, XPGain: Integer;
+  Roll: Integer;
+  Amt, XPGain: LongInt;
 begin
   repeat
     ClrScr;
@@ -108,7 +117,7 @@ begin
     WriteLn;
     Write('Your choice: ');
 
-    Choice := UpCase(ReadKey);
+    Choice := UpCase(GetKey);
     WriteLn(Choice);
     WriteLn;
 
@@ -118,7 +127,7 @@ begin
       'T': begin
              if P.Gold < TitheCost then
              begin
-               WriteLn('You check your pouch—you do not have ', TitheCost, ' gold to tithe.');
+               WriteLn('You check your pouch - you do not have ', TitheCost, ' gold to tithe.');
                Pause;
              end
              else
@@ -233,85 +242,95 @@ begin
 
       'B': begin
              WriteLn('A brass-bound poor box sits bolted to the back pew.');
-             Write('[D]rop 15 gold inside, [S]teal from the box, or [I]gnore? ');
-             Choice := UpCase(ReadKey);
-             WriteLn(Choice);
-             WriteLn;
-
-             if Choice = 'D' then
+             if P.PoorBoxDone then
              begin
-               if P.Gold < 15 then
-                 WriteLn('You don''t even have 15 gold to spare.')
-               else
+               WriteLn('The deacon is watching it closely now. Best leave it until tomorrow.');
+               Pause;
+             end
+             else
+             begin
+               Write('[D]rop 15 gold inside, [S]teal from the box, or [I]gnore? ');
+               Choice := UpCase(GetKey);
+               WriteLn(Choice);
+               WriteLn;
+
+               if Choice = 'D' then
                begin
-                 P.Gold := P.Gold - 15;
+                 if P.Gold < 15 then
+                   WriteLn('You don''t even have 15 gold to spare.')
+                 else
+                 begin
+                   P.Gold := P.Gold - 15;
+                   P.PoorBoxDone := True;
+                   Roll := Random(100) + 1;
+                   case Roll of
+                     1..55:
+                       begin
+                         XPGain := (12 + Random(10)) * LongInt(P.Level);
+                         P.XP := P.XP + XPGain;
+                         TextColor(Yellow);
+                         WriteLn('You slip 15 coins through the slot. Quiet clarity finds you (+', XPGain, ' XP).');
+                       end;
+                     56..85:
+                       begin
+                         Amt := 10 + (P.Level * 3);
+                         P.HP := P.HP + Amt;
+                         if P.HP > P.MaxHP then P.HP := P.MaxHP;
+                         P.MP := P.MP + 5;
+                         if P.MP > P.MaxMP then P.MP := P.MaxMP;
+                         TextColor(LightGreen);
+                         WriteLn('A warm breeze brushes your face (+', Amt, ' HP, +5 MP).');
+                       end;
+                   else
+                     begin
+                       Amt := 40 * LongInt(P.Level);
+                       AddGold(P.Gold, Amt);
+                       TextColor(LightCyan);
+                       WriteLn('As your coin drops, a heavy gold sovereign rolls out the bottom (+', Amt, ' gold)!');
+                     end;
+                   end;
+                   TextColor(LightGray);
+                   SavePlayer(P);
+                 end;
+                 Pause;
+               end
+               else if Choice = 'S' then
+               begin
+                 P.PoorBoxDone := True;
                  Roll := Random(100) + 1;
                  case Roll of
-                   1..55:
+                   1..30:
                      begin
-                       XPGain := (12 + Random(10)) * P.Level;
-                       P.XP := P.XP + XPGain;
+                       Amt := (25 + Random(25)) * LongInt(P.Level);
+                       AddGold(P.Gold, Amt);
                        TextColor(Yellow);
-                       WriteLn('You slip 15 coins through the slot. Quiet clarity finds you (+', XPGain, ' XP).');
+                       WriteLn('Your fingers hook ', Amt, ' tarnished coins - and a cold chill runs down your spine.');
                      end;
-                   56..85:
+                   31..65:
                      begin
-                       Amt := 10 + (P.Level * 3);
-                       P.HP := P.HP + Amt;
-                       if P.HP > P.MaxHP then P.HP := P.MaxHP;
-                       P.MP := P.MP + 5;
-                       if P.MP > P.MaxMP then P.MP := P.MaxMP;
-                       TextColor(LightGreen);
-                       WriteLn('A warm breeze brushes your face (+', Amt, ' HP, +5 MP).');
+                       Amt := 8 + (P.Level * 3) + Random(6);
+                       P.HP := P.HP - Amt;
+                       if P.HP < 1 then P.HP := 1;
+                       TextColor(LightRed);
+                       WriteLn('A rusted spring-trap snaps across your knuckles (-', Amt, ' HP)!');
+                     end;
+                   66..90:
+                     begin
+                       Amt := 8 + (P.Level * 2);
+                       P.MP := P.MP - Amt;
+                       if P.MP < 0 then P.MP := 0;
+                       TextColor(LightMagenta);
+                       WriteLn('Spectral frost leaps from the brass lock, draining ', Amt, ' MP!');
                      end;
                  else
                    begin
-                     Amt := 40 * P.Level;
-                     P.Gold := P.Gold + Amt;
-                     TextColor(LightCyan);
-                     WriteLn('As your coin drops, a heavy gold sovereign rolls out the bottom (+', Amt, ' gold)!');
+                     WriteLn('The box is completely empty save for a dead moth and dust.');
                    end;
                  end;
                  TextColor(LightGray);
                  SavePlayer(P);
+                 Pause;
                end;
-               Pause;
-             end
-             else if Choice = 'S' then
-             begin
-               Roll := Random(100) + 1;
-               case Roll of
-                 1..30:
-                   begin
-                     Amt := (25 + Random(25)) * P.Level;
-                     P.Gold := P.Gold + Amt;
-                     TextColor(Yellow);
-                     WriteLn('Your fingers hook ', Amt, ' tarnished coins—and a cold chill runs down your spine.');
-                   end;
-                 31..65:
-                   begin
-                     Amt := 8 + (P.Level * 3) + Random(6);
-                     P.HP := P.HP - Amt;
-                     if P.HP < 1 then P.HP := 1;
-                     TextColor(LightRed);
-                     WriteLn('A rusted spring-trap snaps across your knuckles (-', Amt, ' HP)!');
-                   end;
-                 66..90:
-                   begin
-                     Amt := 8 + (P.Level * 2);
-                     P.MP := P.MP - Amt;
-                     if P.MP < 0 then P.MP := 0;
-                     TextColor(LightMagenta);
-                     WriteLn('Spectral frost leaps from the brass lock, draining ', Amt, ' MP!');
-                   end;
-               else
-                 begin
-                   WriteLn('The box is completely empty save for a dead moth and dust.');
-                 end;
-               end;
-               TextColor(LightGray);
-               SavePlayer(P);
-               Pause;
              end;
              Choice := ' ';
            end;
