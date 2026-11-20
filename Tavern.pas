@@ -215,7 +215,7 @@ begin
   repeat
     ClrScr;
     TextColor(Yellow);
-    WriteLn('--- The Rusted Lantern Tavern ---');
+    WriteLn('--- The Olde Hallowed Tavern ---');
     TextColor(LightGray);
     WriteLn('Smoke hangs thick from the rafters. Dice clatter in the corner.');
     WriteLn;
