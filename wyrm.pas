@@ -2,7 +2,7 @@
 program AshenWyrm;
 
 uses
-  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys, ShiftingWood;
+  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys, ShiftingWood, Streets;
 
 var
   Hero: TPlayer;
@@ -67,12 +67,71 @@ begin
   Pause;
 end;
 
+{ Where the warrior sleeps tonight decides whether they can be ambushed.
+  Returns True once they have gone to bed. }
+function ChooseBed: Boolean;
+var
+  Choice: Char;
+begin
+  ChooseBed := False;
+  ClrScr;
+  if Hero.InnPaidDay = Trunc(Date) then
+  begin
+    TextColor(LightGreen);
+    WriteLn('You head up to the room you paid for at the Inn and bolt the door.');
+    TextColor(LightGray);
+    SavePlayerAsleep(Hero, True);
+    ChooseBed := True;
+    Exit;
+  end;
+
+  TextColor(Yellow);
+  WriteLn('--- Turning In ---');
+  TextColor(LightGray);
+  WriteLn('You have no room at the Inn tonight. Sleep in the street and anyone may');
+  WriteLn('jump you while you are away, with whatever HP you go to bed with.');
+  if Hero.Gold > 0 then
+  begin
+    TextColor(LightRed);
+    WriteLn('You are carrying ', Hero.Gold, ' gold. The bank is safer than your boot.');
+  end;
+  TextColor(LightGray);
+  WriteLn;
+  WriteLn('[I] Rent a room at the Inn (', RoomCost(Hero), ' gold)');
+  WriteLn('[S] Sleep in the street');
+  WriteLn('[N] Never mind, back to town');
+  WriteLn;
+  Write('Your choice: ');
+  Choice := UpCase(GetKey);
+  WriteLn(Choice);
+  WriteLn;
+
+  case Choice of
+    'I': if RentRoom(Hero) then
+         begin
+           TextColor(LightGreen);
+           WriteLn('You climb the stairs, bolt the door behind you, and sleep.');
+           TextColor(LightGray);
+           SavePlayerAsleep(Hero, True);
+           ChooseBed := True;
+         end
+         else
+           Pause;
+    'S': begin
+           WriteLn('You find a doorway out of the wind and pull your cloak tight.');
+           SavePlayerAsleep(Hero, False);
+           ChooseBed := True;
+         end;
+  end;
+end;
+
 procedure TownMenu;
 var
   Choice: Char;
   StatusLine, Champ, BridgeLabel: string;
 begin
   CheckDailyReset(Hero);
+  SavePlayer(Hero); { Heartbeat: marks this warrior awake for other nodes }
   ClrScr;
 
   { Top Title & Live Warrior HUD Box }
@@ -150,7 +209,7 @@ begin
   WriteLn(' |');
   WriteLn('+------------------------------------+------------------------------------+');
 
-  { 8 Rows (15 Menu Options) }
+  { 9 Rows (17 Menu Options) }
   PrintDualRow('W', 'Weapon Shop',             'F', 'Enter the Forest (Hunt)');
   PrintDualRow('A', 'Armor Shop',              'G', 'Old Cemetery (Crypt)');
   if (Hero.Level >= WOOD_MIN_LEVEL) and Hero.WoodSeen then
@@ -159,7 +218,8 @@ begin
     BridgeLabel := 'Creek Footbridge (Explore)';
   PrintDualRow('T', 'Training Grounds',        'C', BridgeLabel);
   PrintDualRow('B', 'South Ridge Bank',        'D', 'Dark Back Alleys');
-  PrintDualRow('I', 'Inn (Rest & Recover)',    'V', 'View Warrior Stats');
+  PrintDualRow('L', 'Healer''s Hut',            'S', 'Prowl the Streets (PvP)');
+  PrintDualRow('I', 'Inn (Sleep Safely)',      'V', 'View Warrior Stats');
   PrintDualRow('H', 'Olde Hallowed Tavern',    'R', 'Hall of Fame (Rankings)');
   PrintDualRow('P', 'Parish Chapel',           'Q', 'Save & Quit');
   PrintDualRow('N', 'Town Crier (Daily News)', ' ', '');
@@ -168,7 +228,7 @@ begin
   WriteLn('+====================================+====================================+');
   WriteLn;
   TextColor(LightGray);
-  Write('Command [W,A,T,B,I,H,P,N / F,G,C,D,V,R,Q]: ');
+  Write('Command [W,A,T,B,L,I,H,P,N / F,G,C,D,S,V,R,Q]: ');
 
   Choice := UpCase(GetKey);
   WriteLn(Choice);
@@ -179,7 +239,13 @@ begin
     'A': VisitArmorShop(Hero);
     'T': VisitTrainer(Hero);
     'B': VisitBank(Hero);
-    'I': RestAtInn(Hero);
+    'I': if RestAtInn(Hero) then
+         begin
+           SavePlayerAsleep(Hero, True);
+           QuitGame := True;
+         end;
+    'L': VisitHealer(Hero);
+    'S': ProwlStreets(Hero);
     'H': VisitTavern(Hero);
     'G': VisitCemetery(Hero);
     'C': VisitFootbridge(Hero);
@@ -203,10 +269,7 @@ begin
              Pause;
            end;
          end;
-    'Q': begin
-           SavePlayer(Hero);
-           QuitGame := True;
-         end;
+    'Q': QuitGame := ChooseBed;
   end;
 end;
 

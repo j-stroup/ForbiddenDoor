@@ -24,15 +24,22 @@ const
   CRYPT_OPEN     = 2;
   CRYPT_USED     = 3;
 
+  { Street ambushes (PvP) }
+  AMBUSHES_PER_DAY = 2;   { Attacks a warrior may make each day }
+  AWAKE_MINUTES    = 10;  { Saved this recently = still awake, can't be attacked }
+  PVP_MIN_LEVEL    = 3;   { Nobody below this level attacks or is attacked }
+  PVP_LEVEL_RANGE  = 3;   { May not attack anyone more levels below you than this }
+
   { A monster MaxLevel meaning it never stops appearing }
   NO_LEVEL_CAP = 32767;
 
   { The Footbridge leads into the Shifting Wood from this level on }
   WOOD_MIN_LEVEL = 13;
 
-  { North Ridge has this many places to search; the Ashen Keep appears
+  { North Ridge has this many places to search (at most 16, one bit each
+    in NRSearched); the Ashen Keep appears
     once NR_KEEP_REVEAL of them have been searched }
-  NR_PLACES      = 12;
+  NR_PLACES      = 14;
   NR_KEEP_REVEAL = 8;
 
 type
@@ -79,6 +86,13 @@ type
     NRVisits: Integer;        { Times this warrior has reached North Ridge }
     NRSearched: Word;         { Bit per North Ridge place already searched }
     WyrmWins: Integer;        { Times this warrior has bested the Ashen Wyrm }
+    { Sleeping and street ambushes }
+    AsleepAtInn: Boolean;     { Turned in at the Inn last time; safe from ambush }
+    InnPaidDay: LongInt;      { Day a room was last paid for }
+    LastActive: Double;       { When this record was last saved by its owner; 0 = logged off }
+    AmbushesLeft: Integer;    { Street ambushes left today }
+    AmbushedDay: LongInt;     { Day this warrior was last ambushed (once a day at most) }
+    NightNews: string[78];    { What happened while they slept, shown on waking }
     { Bumped on every save; detects the same warrior playing on two nodes }
     SaveCount: LongInt;
   end;
@@ -184,6 +198,12 @@ procedure AddGold(var Balance: LongInt; Delta: LongInt);
 procedure Pause;
 function XPForNextLevel(CurrentLevel: Integer): LongInt;
 procedure SavePlayer(const P: TPlayer);
+procedure SavePlayerAsleep(var P: TPlayer; AtInn: Boolean);
+function IsAwake(const R: TPlayer): Boolean;
+function SameName(const A, B: string): Boolean;
+function PlayerCount: LongInt;
+function ReadPlayerAt(Index: LongInt; var R: TPlayer): Boolean;
+function WriteSleeperAt(Index: LongInt; const Seen, Updated: TPlayer): Boolean;
 function LoginPlayer(var P: TPlayer): Boolean;
 procedure CheckDailyReset(var P: TPlayer);
 procedure ShowStats(const P: TPlayer);
@@ -328,7 +348,7 @@ end;
 { Overwrites ONLY this player's specific record slot in PLAYER.DAT.
   If another node saved this warrior since we last did, this session is
   stale, so we disconnect instead of overwriting the newer progress. }
-procedure SavePlayer(const P: TPlayer);
+procedure WriteOwnRecord(const P: TPlayer; Stamp: Double);
 var
   F: file of TPlayer;
   OnDisk, ToWrite: TPlayer;
@@ -382,9 +402,111 @@ begin
   ToWrite := P;
   Inc(SessionSaveCount);
   ToWrite.SaveCount := SessionSaveCount;
+  ToWrite.LastActive := Stamp;
 
   Seek(F, CurrentPlayerIndex);
   Write(F, ToWrite);
+  Close(F);
+end;
+
+procedure SavePlayer(const P: TPlayer);
+begin
+  WriteOwnRecord(P, Now);
+end;
+
+{ Logs the warrior off: at the Inn (safe) or in the street (fair game) }
+procedure SavePlayerAsleep(var P: TPlayer; AtInn: Boolean);
+begin
+  P.AsleepAtInn := AtInn;
+  WriteOwnRecord(P, 0);
+end;
+
+{ True while the record's owner is (or very recently was) playing }
+function IsAwake(const R: TPlayer): Boolean;
+begin
+  IsAwake := (R.LastActive > 0) and ((Now - R.LastActive) * 1440 < AWAKE_MINUTES);
+end;
+
+function SameName(const A, B: string): Boolean;
+begin
+  SameName := UpperCase(Trim(A)) = UpperCase(Trim(B));
+end;
+
+function PlayerCount: LongInt;
+var
+  F: file of TPlayer;
+begin
+  PlayerCount := 0;
+  Assign(F, SAVE_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult <> 0 then
+    Exit;
+  PlayerCount := FileSize(F);
+  Close(F);
+end;
+
+function ReadPlayerAt(Index: LongInt; var R: TPlayer): Boolean;
+var
+  F: file of TPlayer;
+begin
+  ReadPlayerAt := False;
+  Assign(F, SAVE_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult <> 0 then
+    Exit;
+  if (Index >= 0) and (Index < FileSize(F)) then
+  begin
+    {$I-}
+    Seek(F, Index);
+    Read(F, R);
+    {$I+}
+    ReadPlayerAt := IOResult = 0;
+  end;
+  Close(F);
+end;
+
+{ Writes another warrior's record (an ambush result). Only succeeds if the
+  record is exactly as we last saw it and its owner is still asleep, so a
+  warrior who logs in mid-ambush never has their session clobbered. }
+function WriteSleeperAt(Index: LongInt; const Seen, Updated: TPlayer): Boolean;
+var
+  F: file of TPlayer;
+  OnDisk, ToWrite: TPlayer;
+  Retries: Integer;
+  Opened: Boolean;
+begin
+  WriteSleeperAt := False;
+  if Index = CurrentPlayerIndex then
+    Exit;
+
+  Assign(F, SAVE_FILE);
+  Retries := 0;
+  repeat
+    {$I-} Reset(F); {$I+}
+    Opened := IOResult = 0;
+    if not Opened then
+    begin
+      Inc(Retries);
+      Delay(25);
+    end;
+  until Opened or (Retries >= 20);
+  if not Opened then
+    Exit;
+
+  {$I-}
+  Seek(F, Index);
+  Read(F, OnDisk);
+  {$I+}
+  if (IOResult = 0) and (OnDisk.SaveCount = Seen.SaveCount) and
+     SameName(OnDisk.Name, Seen.Name) and (not IsAwake(OnDisk)) then
+  begin
+    ToWrite := Updated;
+    ToWrite.SaveCount := OnDisk.SaveCount + 1;
+    ToWrite.LastActive := OnDisk.LastActive;
+    Seek(F, Index);
+    Write(F, ToWrite);
+    WriteSleeperAt := True;
+  end;
   Close(F);
 end;
 
@@ -440,6 +562,7 @@ begin
     P.AlleyHeat := 0;
     P.CryptState := CRYPT_UNROLLED;
     P.LostInWood := False;
+    P.AmbushesLeft := AMBUSHES_PER_DAY;
 
     { 5% daily interest, capped per level so balances cannot snowball }
     Interest := P.BankGold div 20;
@@ -525,6 +648,8 @@ begin
   P.WeaponIndex := 1;
   P.ArmorIndex := 1;
   P.CryptState := CRYPT_UNROLLED;
+  P.AmbushesLeft := AMBUSHES_PER_DAY;
+  P.LastActive := Now;
   P.SaveCount := 0;
 
   Assign(F, SAVE_FILE);
@@ -677,6 +802,57 @@ begin
   Pause;
 end;
 
+{ Gets the warrior out of bed: a night at the Inn restores them fully,
+  and anything that happened while they slept is reported. }
+procedure WakeUp(var P: TPlayer);
+var
+  Rested: Boolean;
+begin
+  Rested := P.AsleepAtInn and (Trunc(Date) > P.InnPaidDay);
+  if Rested then
+  begin
+    P.HP := P.MaxHP;
+    P.MP := P.MaxMP;
+  end;
+
+  if Rested or (P.NightNews <> '') or (not P.AsleepAtInn) then
+  begin
+    ClrScr;
+    TextColor(Yellow);
+    WriteLn('--- You Wake ---');
+    WriteLn;
+    if Rested then
+    begin
+      TextColor(LightGreen);
+      WriteLn('You wake in a warm bed at the South Ridge Inn after a full night''s sleep.');
+      WriteLn('HP and MP fully restored (', P.HP, '/', P.MaxHP, ' HP, ', P.MP, '/', P.MaxMP, ' MP).');
+    end
+    else if P.AsleepAtInn then
+    begin
+      TextColor(LightGray);
+      WriteLn('You get up from your room at the Inn. A nap is not a night''s sleep.');
+    end
+    else
+    begin
+      TextColor(LightGray);
+      WriteLn('You wake on the cold cobbles where you dropped, stiff and damp with dew.');
+    end;
+
+    if P.NightNews <> '' then
+    begin
+      WriteLn;
+      TextColor(LightRed);
+      WriteLn('While you slept: ', P.NightNews);
+    end;
+    TextColor(LightGray);
+    Pause;
+  end;
+
+  P.AsleepAtInn := False;
+  P.NightNews := '';
+  SavePlayer(P);
+end;
+
 function LoginPlayer(var P: TPlayer): Boolean;
 var
   InputName: string;
@@ -735,6 +911,7 @@ begin
           TextColor(LightGray);
           Pause;
           CheckDailyReset(P);
+          WakeUp(P);
           LoginPlayer := True;
           Exit;
         end

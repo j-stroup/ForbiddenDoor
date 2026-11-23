@@ -23,13 +23,14 @@ const
   WYRM_NAME = 'The Ashen Wyrm';
 
   { Hotkeys of the searchable places, in bit order }
-  PLACE_KEYS: string[NR_PLACES] = 'WATBIHPNFGDR';
+  PLACE_KEYS: string[NR_PLACES] = 'WATBIHPNFGDRLS';
 
   PLACE_NAMES: array[1..NR_PLACES] of string[30] = (
     'Weapon Shop', 'Armor Shop', 'Training Grounds', 'South Ridge Bank',
-    'Inn (Rest & Recover)', 'Olde Hallowed Tavern', 'Parish Chapel',
+    'Inn (Sleep Safely)', 'Olde Hallowed Tavern', 'Parish Chapel',
     'Town Crier (Daily News)', 'Enter the Forest (Hunt)', 'Old Cemetery (Crypt)',
-    'Dark Back Alleys', 'Hall of Fame (Rankings)'
+    'Dark Back Alleys', 'Hall of Fame (Rankings)', 'Healer''s Hut',
+    'Prowl the Streets (PvP)'
   );
 
   { First search of each place: three lines, no people anywhere }
@@ -69,7 +70,13 @@ const
      'His bone dice sit on top of it. Both show a single pip.'),
     ('Every plaque on the wall has been scratched blank,',
      'raked over and over by something with claws',
-     'until the names were gone.')
+     'until the names were gone.'),
+    ('The herbs hanging from the rafters have crumbled to grey powder.',
+     'The cot is made up with clean linen, turned down, waiting.',
+     'On the pillow lies a single grey scale, curled like a fingernail.'),
+    ('The doorways where the poor sleep are empty, blankets still laid out.',
+     'Every blanket is scorched in the same place, a long dark smear',
+     'that leads up the street toward the hill.')
   );
 
   REVISIT: array[1..4] of string[60] = (
@@ -190,7 +197,8 @@ begin
   PrintDimRow('A', 'Armor Shop',              'G', 'Old Cemetery (Crypt)');
   PrintDimRow('T', 'Training Grounds',        'C', 'Creek Footbridge (Leave)');
   PrintDimRow('B', 'South Ridge Bank',        'D', 'Dark Back Alleys');
-  PrintDimRow('I', 'Inn (Rest & Recover)',    'V', 'View Warrior Stats');
+  PrintDimRow('L', 'Healer''s Hut',            'S', 'Prowl the Streets (PvP)');
+  PrintDimRow('I', 'Inn (Sleep Safely)',      'V', 'View Warrior Stats');
   PrintDimRow('H', 'Olde Hallowed Tavern',    'R', 'Hall of Fame (Rankings)');
   PrintDimRow('P', 'Parish Chapel',           'Q', 'Save & Quit');
   PrintDimRow('N', 'Town Crier (Daily News)', ' ', '');
@@ -212,9 +220,9 @@ begin
   WriteLn;
   TextColor(DarkGray);
   if KeepRevealed(P) then
-    Write('Command [W,A,T,B,I,H,P,N / F,G,C,D,V,R,Q / K]: ')
+    Write('Command [W,A,T,B,L,I,H,P,N / F,G,C,D,S,V,R,Q / K]: ')
   else
-    Write('Command [W,A,T,B,I,H,P,N / F,G,C,D,V,R,Q]: ');
+    Write('Command [W,A,T,B,L,I,H,P,N / F,G,C,D,S,V,R,Q]: ');
 end;
 
 { Visits one of the twelve places. Returns True if it used up an hour. }
@@ -417,7 +425,7 @@ begin
                Exit;
              end;
         'Q': begin
-               SavePlayer(P);
+               SavePlayerAsleep(P, False); { No room out here: they wake in the street }
                ClrScr;
                WriteLn('Progress saved. You close your eyes in North Ridge,');
                WriteLn('and wake in South Ridge, not sure how you got there.');
