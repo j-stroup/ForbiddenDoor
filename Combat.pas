@@ -4,7 +4,7 @@ unit Combat;
 interface
 
 uses
-  Crt, GameTypes;
+  Crt, SysUtils, GameTypes, Town;
 
 procedure EnterForest(var P: TPlayer);
 
@@ -14,7 +14,7 @@ implementation
 procedure FightMonster(var P: TPlayer);
 var
   Enemy: TMonster;
-  EnemyHP: LongInt;
+  EnemyHP, EnemyAtk, GoldReward, XPReward: LongInt;
   Action: Char;
   PlayerDmg, EnemyDmg: LongInt;
   MinMonsterIdx, MaxMonsterIdx: Integer;
@@ -36,9 +36,22 @@ begin
 
   Enemy := MONSTERS[MinMonsterIdx + Random(MaxMonsterIdx - MinMonsterIdx + 1)];
   EnemyHP := Enemy.HP;
+  EnemyAtk := Enemy.Attack;
+  GoldReward := Enemy.GoldReward;
+  XPReward := Enemy.XPReward;
 
   TextColor(LightRed);
   WriteLn('A ', Enemy.Name, ' emerges from the shadows!');
+
+  if TodayCondition = cdBloodMoon then
+  begin
+    EnemyHP := (EnemyHP * 5) div 4;
+    EnemyAtk := (EnemyAtk * 5) div 4;
+    GoldReward := (GoldReward * 3) div 2;
+    XPReward := (XPReward * 3) div 2;
+    TextColor(Red);
+    WriteLn('Its eyes burn red beneath the blood moon. It looks stronger - and richer.');
+  end;
   TextColor(LightGray);
 
   repeat
@@ -73,7 +86,7 @@ begin
 
     if TurnTaken and (EnemyHP > 0) then
     begin
-      EnemyDmg := (Random(Enemy.Attack) + 1) - ARMORS[P.ArmorIndex].StatBonus;
+      EnemyDmg := (Random(EnemyAtk) + 1) - ARMORS[P.ArmorIndex].StatBonus;
       if EnemyDmg < 1 then
         EnemyDmg := 1;
 
@@ -91,15 +104,16 @@ begin
     WriteLn('You fall in battle! Bandits strip your corpse before a merchant drags you to town.');
     if P.Gold > 0 then
       WriteLn('You lost all ', P.Gold, ' gold you were carrying!');
+    PostNews(P.Name + ' fell to ' + Enemy.Name + ' in the forest.');
     P.HP := 1;
     P.Gold := 0;
   end
   else
   begin
     TextColor(Yellow);
-    WriteLn('Victory! You claim ', Enemy.GoldReward, ' gold and ', Enemy.XPReward, ' XP.');
-    AddGold(P.Gold, Enemy.GoldReward);
-    P.XP := P.XP + Enemy.XPReward;
+    WriteLn('Victory! You claim ', GoldReward, ' gold and ', XPReward, ' XP.');
+    AddGold(P.Gold, GoldReward);
+    P.XP := P.XP + XPReward;
 
     if P.XP >= XPForNextLevel(P.Level) then
     begin

@@ -4,7 +4,7 @@ unit Shops;
 interface
 
 uses
-  Crt, SysUtils, GameTypes;
+  Crt, SysUtils, GameTypes, Town;
 
 procedure VisitBank(var P: TPlayer);
 procedure VisitTrainer(var P: TPlayer);
@@ -13,6 +13,25 @@ procedure VisitArmorShop(var P: TPlayer);
 procedure RestAtInn(var P: TPlayer);
 
 implementation
+
+{ Harvest Festival knocks 15% off weapons and armor }
+function ShopPrice(BaseCost: LongInt): LongInt;
+begin
+  if TodayCondition = cdFestival then
+    ShopPrice := (BaseCost * 85) div 100
+  else
+    ShopPrice := BaseCost;
+end;
+
+procedure FestivalBanner;
+begin
+  if TodayCondition = cdFestival then
+  begin
+    TextColor(Yellow);
+    WriteLn('Harvest Festival! Bunting hangs over the counter - 15% off everything today.');
+    TextColor(LightGray);
+  end;
+end;
 
 procedure VisitBank(var P: TPlayer);
 var
@@ -112,6 +131,7 @@ begin
     P.MP := P.MaxMP;
     P.Strength := P.Strength + 3;
     SavePlayer(P);
+    PostNews(P.Name + ' trained with Master Vane and reached Level ' + IntToStr(P.Level) + '.');
 
     TextColor(Yellow);
     WriteLn('*** LEVEL UP! You are now Level ', P.Level, '! ***');
@@ -131,11 +151,12 @@ begin
   TextColor(LightCyan);
   WriteLn('--- The Blacksmith (Your Gold: ', P.Gold, ') ---');
   TextColor(LightGray);
+  FestivalBanner;
   WriteLn('Equipped: ', WEAPONS[P.WeaponIndex].Name, ' (+', WEAPONS[P.WeaponIndex].StatBonus, ' Atk)');
   WriteLn;
 
   for i := 2 to High(WEAPONS) do
-    WriteLn('[', i:2, '] ', WEAPONS[i].Name:22, ' (+', WEAPONS[i].StatBonus:3, ' Atk) - ', WEAPONS[i].Cost, ' gold');
+    WriteLn('[', i:2, '] ', WEAPONS[i].Name:22, ' (+', WEAPONS[i].StatBonus:3, ' Atk) - ', ShopPrice(WEAPONS[i].Cost), ' gold');
 
   WriteLn('[ 0] Leave Shop');
   WriteLn;
@@ -148,13 +169,15 @@ begin
   begin
     if Pick <= P.WeaponIndex then
       WriteLn('You already own that weapon or better!')
-    else if P.Gold < WEAPONS[Pick].Cost then
+    else if P.Gold < ShopPrice(WEAPONS[Pick].Cost) then
       WriteLn('You do not have enough gold.')
     else
     begin
-      P.Gold := P.Gold - WEAPONS[Pick].Cost;
+      P.Gold := P.Gold - ShopPrice(WEAPONS[Pick].Cost);
       P.WeaponIndex := Pick;
       SavePlayer(P);
+      if Pick >= 10 then
+        PostNews(P.Name + ' now wields the ' + WEAPONS[Pick].Name + '.');
       TextColor(LightGreen);
       WriteLn('You equip the ', WEAPONS[Pick].Name, '!');
       TextColor(LightGray);
@@ -172,11 +195,12 @@ begin
   TextColor(LightCyan);
   WriteLn('--- The Armorer (Your Gold: ', P.Gold, ') ---');
   TextColor(LightGray);
+  FestivalBanner;
   WriteLn('Equipped: ', ARMORS[P.ArmorIndex].Name, ' (+', ARMORS[P.ArmorIndex].StatBonus, ' Def)');
   WriteLn;
 
   for i := 2 to High(ARMORS) do
-    WriteLn('[', i:2, '] ', ARMORS[i].Name:22, ' (+', ARMORS[i].StatBonus:2, ' Def) - ', ARMORS[i].Cost, ' gold');
+    WriteLn('[', i:2, '] ', ARMORS[i].Name:22, ' (+', ARMORS[i].StatBonus:2, ' Def) - ', ShopPrice(ARMORS[i].Cost), ' gold');
 
   WriteLn('[ 0] Leave Shop');
   WriteLn;
@@ -189,13 +213,15 @@ begin
   begin
     if Pick <= P.ArmorIndex then
       WriteLn('You already own that armor or better!')
-    else if P.Gold < ARMORS[Pick].Cost then
+    else if P.Gold < ShopPrice(ARMORS[Pick].Cost) then
       WriteLn('You do not have enough gold.')
     else
     begin
-      P.Gold := P.Gold - ARMORS[Pick].Cost;
+      P.Gold := P.Gold - ShopPrice(ARMORS[Pick].Cost);
       P.ArmorIndex := Pick;
       SavePlayer(P);
+      if Pick >= 9 then
+        PostNews(P.Name + ' now wears the ' + ARMORS[Pick].Name + '.');
       TextColor(LightGreen);
       WriteLn('You strap on the ', ARMORS[Pick].Name, '!');
       TextColor(LightGray);
@@ -212,10 +238,14 @@ var
 begin
   ClrScr;
   RoomCost := 15 * LongInt(P.Level);
+  if TodayCondition = cdFestival then
+    RoomCost := RoomCost div 2;
 
   TextColor(Yellow);
   WriteLn('--- The South Ridge Inn ---');
   TextColor(LightGray);
+  if TodayCondition = cdFestival then
+    WriteLn('Festival rates tonight: rooms are half price!');
   WriteLn('Server Time: ', FormatDateTime('hh:nn am/pm', Now), ' (Daily limits reset at midnight)');
   WriteLn;
   WriteLn('A quiet room for a few hours costs ', RoomCost, ' gold (Your gold: ', P.Gold, ').');

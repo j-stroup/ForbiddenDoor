@@ -4,7 +4,7 @@ unit Chapel;
 interface
 
 uses
-  Crt, SysUtils, GameTypes;
+  Crt, SysUtils, GameTypes, Town;
 
 procedure VisitChapel(var P: TPlayer);
 
@@ -50,6 +50,7 @@ begin
   if Whisper = 'XYZZY' then
   begin
     P.ConfessDone := True;
+    PostNews('The old chapel confessional was heard whispering back to someone.');
     Bonus := 120 * LongInt(P.Level);
     AddGold(P.Gold, Bonus);
     TextColor(Yellow);
@@ -67,6 +68,7 @@ begin
   else if Whisper = 'WORM' then
   begin
     P.ConfessDone := True;
+    PostNews('The old chapel confessional was heard whispering back to someone.');
     Bonus := 45 * LongInt(P.Level);
     P.XP := P.XP + Bonus;
     TextColor(LightMagenta);
@@ -94,6 +96,7 @@ procedure VisitChapel(var P: TPlayer);
 var
   Choice: Char;
   TitheCost: LongInt;
+  MedCost: Integer;
   Roll: Integer;
   Amt, XPGain: LongInt;
 begin
@@ -108,10 +111,20 @@ begin
     WriteLn('HP: ', P.HP, '/', P.MaxHP, ' | MP: ', P.MP, '/', P.MaxMP, ' | Gold: ', P.Gold);
     WriteLn;
 
-    TitheCost := 20 * P.Level;
+    TitheCost := 20 * LongInt(P.Level);
+    MedCost := 6;
+    if TodayCondition = cdHolyDay then
+    begin
+      TitheCost := TitheCost div 2;
+      MedCost := 3;
+      TextColor(Yellow);
+      WriteLn('It is a holy day. Fresh lilies line the aisle and the deacon greets everyone.');
+      TextColor(LightGray);
+      WriteLn;
+    end;
 
     WriteLn('[T] Light a Candle & Tithe (', TitheCost, ' gold - Seek a blessing)');
-    WriteLn('[M] Quiet Meditation (Spend 6 MP - Unpredictable trance)');
+    WriteLn('[M] Quiet Meditation (Spend ', MedCost, ' MP - Unpredictable trance)');
     WriteLn('[B] Inspect the Wooden Poor Box');
     WriteLn('[L] Leave Chapel');
     WriteLn;
@@ -186,16 +199,16 @@ begin
            end;
 
       'M': begin
-             if P.MP < 6 then
+             if P.MP < MedCost then
              begin
                TextColor(Red);
-               WriteLn('You need at least 6 MP to focus your thoughts.');
+               WriteLn('You need at least ', MedCost, ' MP to focus your thoughts.');
                TextColor(LightGray);
                Pause;
              end
              else
              begin
-               P.MP := P.MP - 6;
+               P.MP := P.MP - MedCost;
                Roll := Random(100) + 1;
 
                case Roll of
@@ -313,6 +326,7 @@ begin
                        if P.HP < 1 then P.HP := 1;
                        TextColor(LightRed);
                        WriteLn('A rusted spring-trap snaps across your knuckles (-', Amt, ' HP)!');
+                       PostNews(P.Name + ' was seen nursing bruised knuckles near the chapel poor box.');
                      end;
                    66..90:
                      begin

@@ -4,7 +4,7 @@ unit Cemetery;
 interface
 
 uses
-  Crt, GameTypes;
+  Crt, GameTypes, Town;
 
 procedure VisitCemetery(var P: TPlayer);
 
@@ -19,6 +19,8 @@ var
   TurnTaken: Boolean;
 begin
   CryptBattle := False;
+  if TodayCondition = cdAllSouls then
+    GoldReward := (GoldReward * 5) div 4;
   TextColor(LightRed);
   WriteLn(EnemyName, ' blocks the stone archway!');
   TextColor(LightGray);
@@ -70,6 +72,7 @@ begin
   begin
     TextColor(Red);
     WriteLn('Darkness swallows you! The portal spits you back onto the cemetery grass.');
+    PostNews(P.Name + ' was swallowed by darkness in the Sunken Crypt.');
     if P.Gold > 0 then
       WriteLn('All ', P.Gold, ' gold you carried was lost in the abyss!');
     P.HP := 1;
@@ -180,6 +183,7 @@ begin
            WriteLn;
            TextColor(LightGreen);
            WriteLn('*** CRYPT CLEARED! ***');
+           PostNews(P.Name + ' has slain Malakor, Lord of the Crypt!');
            WriteLn('The portal stabilizes long enough for you to step back into the night air.');
            TextColor(LightGray);
            Pause;
@@ -216,12 +220,18 @@ begin
   TextColor(LightGray);
   WriteLn('Crooked iron fences lean into the mist among weathered 19th-century headstones.');
   WriteLn('You approach the heavy stone crypt at the far end of the grounds...');
+  if TodayCondition = cdAllSouls then
+  begin
+    TextColor(LightMagenta);
+    WriteLn('It is All Souls'' Night. The dead are restless, and the crypt hums with power.');
+    TextColor(LightGray);
+  end;
   WriteLn;
 
   { The portal is rolled once per day (20% chance), so re-entering cannot reroll it }
   if P.CryptState = CRYPT_UNROLLED then
   begin
-    if Random(5) = 0 then
+    if (Random(5) = 0) or (TodayCondition = cdAllSouls) then
       P.CryptState := CRYPT_OPEN
     else
       P.CryptState := CRYPT_SEALED;

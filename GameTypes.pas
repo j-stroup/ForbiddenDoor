@@ -4,7 +4,7 @@ unit GameTypes;
 interface
 
 uses
-  Crt, SysUtils, md5;
+  Crt, SysUtils, md5, Town;
 
 const
   SAVE_FILE = 'PLAYER.DAT';
@@ -402,7 +402,10 @@ begin
   if Today <> P.LastPlayDay then
   begin
     P.LastPlayDay := Today;
-    P.FightsLeft := 5;
+    if TodayCondition = cdStorm then
+      P.FightsLeft := 4
+    else
+      P.FightsLeft := 5;
     P.TavernDone := False;
     P.BridgeDone := False;
     P.SysOpDone := False;
@@ -428,10 +431,14 @@ begin
     WriteLn('             A NEW DAWN BREAKS OVER SOUTH RIDGE            ');
     WriteLn('===========================================================');
     TextColor(LightGreen);
-    WriteLn('Your daily forest fights (5), Tavern Pit, Creek Footbridge,');
+    WriteLn('Your daily forest fights (', P.FightsLeft, '), Tavern Pit, Creek Footbridge,');
     WriteLn('crypt, chapel, and back alleys have all been reset!');
     if Interest > 0 then
       WriteLn('Your bank vault earned ', Interest, ' gold in overnight interest (Balance: ', P.BankGold, ').');
+    WriteLn;
+    TextColor(LightCyan);
+    WriteLn('Today in South Ridge: ', ConditionName(TodayCondition));
+    PrintConditionDetails(TodayCondition);
     TextColor(LightGray);
     Pause;
   end;
@@ -482,7 +489,10 @@ begin
   P.Strength := 10;
   P.Gold := 60;
   P.BankGold := 0;
-  P.FightsLeft := 5;
+  if TodayCondition = cdStorm then
+    P.FightsLeft := 4
+  else
+    P.FightsLeft := 5;
   P.TavernDone := False;
   P.BridgeDone := False;
   P.LastPlayDay := Trunc(Date);
@@ -528,6 +538,7 @@ begin
   Write(F, P);
   Close(F);
   CreateNewCharacter := True;
+  PostNews('A stranger named ' + ChosenName + ' wandered into South Ridge.');
 end;
 
 { True when A should be listed above B in the rankings }

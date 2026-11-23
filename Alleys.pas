@@ -4,7 +4,7 @@ unit Alleys;
 interface
 
 uses
-  Crt, SysUtils, GameTypes;
+  Crt, SysUtils, GameTypes, Town;
 
 procedure VisitAlleys(var P: TPlayer);
 
@@ -38,6 +38,7 @@ begin
   if Code = 'U9LY' then
   begin
     P.IronDoorDone := True;
+    PostNews('Strange laughter echoed from behind an iron cellar door in the back alleys.');
     Reward := 150 * LongInt(P.Level);
     AddGold(P.Gold, Reward);
     TextColor(Yellow);
@@ -46,6 +47,7 @@ begin
   else if Code = 'BRYCE' then
   begin
     P.IronDoorDone := True;
+    PostNews('Strange laughter echoed from behind an iron cellar door in the back alleys.');
     P.Strength := P.Strength + 1;
     TextColor(LightGreen);
     WriteLn('A guy in a stained hoodie nods in respect and hands you a protein bar.');
@@ -54,6 +56,7 @@ begin
   else if Code = '1993' then
   begin
     P.IronDoorDone := True;
+    PostNews('Strange laughter echoed from behind an iron cellar door in the back alleys.');
     Reward := 60 * LongInt(P.Level);
     P.XP := P.XP + Reward;
     P.MP := P.MaxMP;
@@ -75,13 +78,18 @@ end;
   ends in thugs, which naturally caps how much a player can farm per day. }
 procedure ScavengeAlley(var P: TPlayer);
 var
-  Roll, Heat: Integer;
+  Roll, Heat, HeatStep: Integer;
   Amt: LongInt;
 begin
   if P.AlleyHeat < 50 then
     Inc(P.AlleyHeat);
   Heat := P.AlleyHeat;
-  Roll := (Random(100) + 1) + (Heat * 7);
+  { Thick fog hides you, so each search raises the heat more slowly }
+  if TodayCondition = cdFog then
+    HeatStep := 4
+  else
+    HeatStep := 7;
+  Roll := (Random(100) + 1) + (Heat * HeatStep);
 
   WriteLn;
   case Roll of
@@ -175,16 +183,27 @@ end;
 
 procedure PlayAlleyDice(var P: TPlayer);
 var
-  Bet, MaxBet: LongInt;
+  Bet, MaxBet, BoxcarsNet: LongInt;
   Die1, Die2, Total: Integer;
 begin
   WriteLn;
-  MaxBet := 100 * P.Level;
+  MaxBet := 100 * LongInt(P.Level);
+  BoxcarsNet := 2;
   TextColor(Yellow);
   WriteLn('--- Crooked Finger''s Bone Dice ---');
   TextColor(LightGray);
-  WriteLn('A one-eyed gambler rattles yellowed bone dice in a leather cup.');
-  WriteLn('"Roll 8 or higher to win. Boxcars (12) pays TRIPLE! Max bet: ', MaxBet, '."');
+  if TodayCondition = cdCarnival then
+  begin
+    MaxBet := MaxBet * 2;
+    BoxcarsNet := 4;
+    WriteLn('Crooked Finger has a carnival barker''s hat on and a crowd around his crate.');
+    WriteLn('"Carnival rules! Roll 8 or higher to win. Boxcars (12) pays FIVE TIMES! Max bet: ', MaxBet, '."');
+  end
+  else
+  begin
+    WriteLn('A one-eyed gambler rattles yellowed bone dice in a leather cup.');
+    WriteLn('"Roll 8 or higher to win. Boxcars (12) pays TRIPLE! Max bet: ', MaxBet, '."');
+  end;
   Write('Enter wager (0 to walk away, Your gold: ', P.Gold, '): ');
 
   if (not ReadNumber(9, Bet)) or (Bet <= 0) then
@@ -211,9 +230,10 @@ begin
 
   if Total = 12 then
   begin
-    AddGold(P.Gold, Bet * 2);
+    AddGold(P.Gold, Bet * BoxcarsNet);
     TextColor(Yellow);
-    WriteLn('BOXCARS! Crooked Finger curses under his breath and pays triple (+', Bet * 2, ' net gold)!');
+    WriteLn('BOXCARS! Crooked Finger curses under his breath and pays up (+', Bet * BoxcarsNet, ' net gold)!');
+    PostNews(P.Name + ' rolled boxcars against Crooked Finger and won ' + IntToStr(Bet * BoxcarsNet) + ' gold!');
   end
   else if Total >= 8 then
   begin
@@ -228,6 +248,7 @@ begin
     if P.HP < 1 then P.HP := 1;
     TextColor(LightRed);
     WriteLn('SNAKE EYES! He takes your ', Bet, ' gold and his bodyguard shoves you into a wall (-', 3 + P.Level, ' HP)!');
+    PostNews(P.Name + ' rolled snake eyes and got tossed into an alley wall.');
   end
   else
   begin

@@ -4,7 +4,7 @@ unit Tavern;
 interface
 
 uses
-  Crt, SysUtils, GameTypes;
+  Crt, SysUtils, GameTypes, Town;
 
 procedure VisitTavern(var P: TPlayer);
 
@@ -220,6 +220,7 @@ begin
   begin
     TextColor(Red);
     WriteLn('LIGHTS OUT! ', OpponentName, ' knocks you cold.');
+    PostNews(P.Name + ' was knocked cold by ' + OpponentName + ' in the Tavern Pit.');
     WriteLn('You wake up in the alley behind the tavern - your pockets picked completely clean!');
     P.HP := 1;
     P.Gold := 0;
@@ -228,6 +229,7 @@ begin
   begin
     TextColor(Yellow);
     WriteLn('KNOCKOUT! The tavern erupts as ', OpponentName, ' hits the sawdust!');
+    PostNews(P.Name + ' knocked out ' + OpponentName + ' in the Tavern Pit!');
     WriteLn('You collect the ', GoldPot, ' gold purse and gain ', XPPot, ' XP!');
     AddGold(P.Gold, GoldPot);
     P.XP := P.XP + XPPot;

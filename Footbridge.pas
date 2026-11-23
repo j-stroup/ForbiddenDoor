@@ -4,7 +4,7 @@ unit Footbridge;
 interface
 
 uses
-  Crt, GameTypes;
+  Crt, GameTypes, Town;
 
 procedure VisitFootbridge(var P: TPlayer);
 
@@ -34,6 +34,9 @@ var
   GoldChange, HPChange, MPChange, XPChange: LongInt;
 begin
   Roll := Random(100) + 1;
+  { Lightning storms turn the hex-mist results into rare relic caches }
+  if (TodayCondition = cdStorm) and (Roll >= 83) and (Roll <= 91) then
+    Roll := 100;
 
   case Roll of
     1..22: { 22% - Treasure / Creek Find }
@@ -58,6 +61,13 @@ begin
       end;
 
     39..54: { 16% - Footpad Bandits (Steals Pocket Gold) }
+      if TodayCondition = cdFog then
+      begin
+        TextColor(LightGray);
+        WriteLn('Voices and snapping branches pass within a few yards of you - bandits!');
+        WriteLn('In the thick fog they never see you crouched behind a stump.');
+      end
+      else
       begin
         TextColor(LightRed);
         WriteLn('Crossbow bolts thud into a tree trunk beside your head - bandits!');
@@ -126,6 +136,7 @@ begin
       TextColor(Yellow);
       WriteLn('RARE FIND! Inside a hollowed-out lightning-struck oak, you uncover');
       WriteLn('an old surveyor''s strongbox (+', GoldChange, ' gold, +', XPChange, ' XP)!');
+      PostNews(P.Name + ' found a surveyor''s strongbox in a lightning-struck oak beyond the creek.');
     end;
   end;
 
@@ -145,6 +156,8 @@ begin
 
   { Pick a random journey length between 4 and 12 forks }
   TotalForks := Random(9) + 4;
+  if TodayCondition = cdStorm then
+    TotalForks := TotalForks + 3; { The storm washes out paths, so the trail runs long }
 
   for Step := 1 to TotalForks do
   begin

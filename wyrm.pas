@@ -2,7 +2,7 @@
 program AshenWyrm;
 
 uses
-  Crt, SysUtils, GameTypes, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys;
+  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys;
 
 var
   Hero: TPlayer;
@@ -21,13 +21,41 @@ begin
 
   TextColor(DarkGray);
   Write(' | ');
-  TextColor(Yellow);
-  Write('[', RightKey, '] ');
+  if RightKey = ' ' then
+    Write('    ') { Empty right-hand cell }
+  else
+  begin
+    TextColor(Yellow);
+    Write('[', RightKey, '] ');
+  end;
   TextColor(LightGray);
   Write(PadRight(RightLabel, 30));
 
   TextColor(DarkGray);
   WriteLn(' |');
+end;
+
+{ The town newspaper: today's condition plus the latest headlines }
+procedure ShowCrier;
+var
+  C: TCondition;
+begin
+  ClrScr;
+  C := TodayCondition;
+  TextColor(DarkGray);
+  WriteLn('+=========================================================================+');
+  TextColor(Yellow);
+  WriteLn('                         THE SOUTH RIDGE CRIER');
+  TextColor(DarkGray);
+  WriteLn('                     ', FormatDateTime('dddd, mmmm d, yyyy', Date));
+  WriteLn('+=========================================================================+');
+  WriteLn;
+  TextColor(LightCyan);
+  WriteLn('TODAY: ', ConditionName(C));
+  PrintConditionDetails(C);
+  WriteLn;
+  PrintNews(12);
+  Pause;
 end;
 
 procedure TownMenu;
@@ -78,6 +106,14 @@ begin
 
   TextColor(DarkGray);
   WriteLn(' |');
+  WriteLn('+-------------------------------------------------------------------------+');
+
+  { Today's town-wide condition }
+  Write('| ');
+  TextColor(LightMagenta);
+  Write(PadRight('Today: ' + ConditionName(TodayCondition) + ' - ' + ConditionShort(TodayCondition), 71));
+  TextColor(DarkGray);
+  WriteLn(' |');
   WriteLn('+====================================+====================================+');
 
   { Column Headers }
@@ -92,7 +128,7 @@ begin
   WriteLn(' |');
   WriteLn('+------------------------------------+------------------------------------+');
 
-  { 7 Symmetric Rows (14 Menu Options) }
+  { 8 Rows (15 Menu Options) }
   PrintDualRow('W', 'Weapon Shop',             'F', 'Enter the Forest (Hunt)');
   PrintDualRow('A', 'Armor Shop',              'G', 'Old Cemetery (Crypt)');
   PrintDualRow('T', 'Training Grounds',        'C', 'Creek Footbridge (Explore)');
@@ -100,12 +136,13 @@ begin
   PrintDualRow('I', 'Inn (Rest & Recover)',    'V', 'View Warrior Stats');
   PrintDualRow('H', 'Olde Hallowed Tavern',    'R', 'Hall of Fame (Rankings)');
   PrintDualRow('P', 'Parish Chapel',           'Q', 'Save & Quit');
+  PrintDualRow('N', 'Town Crier (Daily News)', ' ', '');
 
   TextColor(DarkGray);
   WriteLn('+====================================+====================================+');
   WriteLn;
   TextColor(LightGray);
-  Write('Command [W,A,T,B,I,H,P / F,G,C,D,V,R,Q]: ');
+  Write('Command [W,A,T,B,I,H,P,N / F,G,C,D,V,R,Q]: ');
 
   Choice := UpCase(GetKey);
   WriteLn(Choice);
@@ -124,6 +161,7 @@ begin
     'D': VisitAlleys(Hero);
     'V': ShowStats(Hero);
     'R': ShowLeaderboard(Hero.Name);
+    'N': ShowCrier;
     '~': begin
            if not Hero.SysOpDone then
            begin
@@ -152,6 +190,8 @@ begin
 
   if not LoginPlayer(Hero) then
     Halt;
+
+  ShowCrier;
 
   repeat
     TownMenu;
