@@ -11,7 +11,7 @@ unit ShiftingWood;
 interface
 
 uses
-  Crt, SysUtils, GameTypes, Town;
+  Crt, SysUtils, GameTypes, Town, WyrmScale;
 
 type
   TFightResult = (frWon, frFled, frDied);
@@ -21,7 +21,7 @@ function WoodTurn(Day: LongInt; Step: Integer): Char;
 function WoodSignIndex(Day: LongInt): Integer;
 procedure PrintWoodWhisper;
 function FightFoe(var P: TPlayer; const FoeName: string;
-                  FoeHP, FoeAtk: LongInt; IsWyrm: Boolean): TFightResult;
+                  FoeHP, FoeAtk, BreathDmg: LongInt): TFightResult;
 procedure BecomeLost(var P: TPlayer; const Headline: string);
 function RunShiftingWood(var P: TPlayer): Boolean;
 
@@ -153,11 +153,11 @@ begin
   WriteLn(P.Name, ' HP: ', P.HP, '/', P.MaxHP, ' | MP: ', P.MP, '  ||  ', FoeName, ' HP: ', FoeHP);
 end;
 
-{ A fight with no 1 HP safety net. The Wyrm breathes fire every fourth
-  turn, which no armor stops. HP is saved after every blow, so hanging up
+{ A fight with no 1 HP safety net. A foe with BreathDmg > 0 (the Wyrm)
+  breathes fire every WYRM_BREATH_EVERY turns, which no armor stops. HP is saved after every blow, so hanging up
   cannot undo the damage. }
 function FightFoe(var P: TPlayer; const FoeName: string;
-                  FoeHP, FoeAtk: LongInt; IsWyrm: Boolean): TFightResult;
+                  FoeHP, FoeAtk, BreathDmg: LongInt): TFightResult;
 var
   Action: Char;
   PlayerDmg, FoeDmg: LongInt;
@@ -193,9 +193,9 @@ begin
     if TurnTaken and (FoeHP > 0) then
     begin
       Inc(Turn);
-      if IsWyrm and (Turn mod 4 = 0) then
+      if (BreathDmg > 0) and (Turn mod WYRM_BREATH_EVERY = 0) then
       begin
-        FoeDmg := 60 + Random(41);
+        FoeDmg := (BreathDmg * (85 + Random(31))) div 100;
         TextColor(Yellow);
         WriteLn('The Wyrm draws a breath that pulls the ash off the floor...');
         TextColor(LightRed);
@@ -251,13 +251,12 @@ end;
   Returns False if the warrior did not walk away from it. }
 function WoodFight(var P: TPlayer; var OnPath: Boolean): Boolean;
 var
-  MinIdx, MaxIdx, Pick: Integer;
+  Pick: Integer;
   Base: TMonster;
   FoeHP, FoeAtk, GoldReward, XPReward: LongInt;
 begin
   WoodFight := True;
-  MonsterBracket(P.Level, MinIdx, MaxIdx);
-  Base := MONSTERS[MinIdx + Random(MaxIdx - MinIdx + 1)];
+  Base := PickMonster(P.Level);
   FoeHP := (LongInt(Base.HP) * 3) div 5;
   FoeAtk := (LongInt(Base.Attack) * 9) div 10;
   GoldReward := (LongInt(Base.GoldReward) * 3) div 4;
@@ -275,7 +274,7 @@ begin
   WriteLn(FOE_INTRO[Pick]);
   TextColor(LightGray);
 
-  case FightFoe(P, FOES[Pick], FoeHP, FoeAtk, False) of
+  case FightFoe(P, FOES[Pick], FoeHP, FoeAtk, 0) of
     frWon:
       begin
         TextColor(Yellow);

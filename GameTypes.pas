@@ -24,6 +24,9 @@ const
   CRYPT_OPEN     = 2;
   CRYPT_USED     = 3;
 
+  { A monster MaxLevel meaning it never stops appearing }
+  NO_LEVEL_CAP = 32767;
+
   { The Footbridge leads into the Shifting Wood from this level on }
   WOOD_MIN_LEVEL = 13;
 
@@ -86,6 +89,8 @@ type
     Attack: Integer;
     GoldReward: Integer;
     XPReward: Integer;
+    MinLevel: Integer;        { Lowest warrior level that meets this creature }
+    MaxLevel: Integer;        { Highest, or NO_LEVEL_CAP }
   end;
 
 const
@@ -132,39 +137,43 @@ const
     (Name: 'Aegis of South Ridge';  StatBonus: 75; Cost: 20000)
   );
 
+  { Forest creatures. A warrior meets any monster whose MinLevel..MaxLevel
+    covers their level, so new creatures only need adding here (and the
+    array size bumping). Overlapping ranges are fine and add variety.
+    Use NO_LEVEL_CAP for creatures that should never stop appearing. }
   MONSTERS: array[1..24] of TMonster = (
     { Tier 1: Levels 1-2 }
-    (Name: 'Rabid Timber Wolf';             HP: 20;   Attack: 5;   GoldReward: 22;   XPReward: 24),
-    (Name: 'Bandit Cutthroat';              HP: 30;   Attack: 8;   GoldReward: 38;   XPReward: 38),
-    (Name: 'Hollow Knight';                 HP: 44;   Attack: 11;  GoldReward: 60;   XPReward: 58),
+    (Name: 'Rabid Timber Wolf';             HP: 20;   Attack: 5;   GoldReward: 22;   XPReward: 24; MinLevel: 1; MaxLevel: 1),
+    (Name: 'Bandit Cutthroat';              HP: 30;   Attack: 8;   GoldReward: 38;   XPReward: 38; MinLevel: 1; MaxLevel: 2),
+    (Name: 'Hollow Knight';                 HP: 44;   Attack: 11;  GoldReward: 60;   XPReward: 58; MinLevel: 2; MaxLevel: 2),
     { Tier 2: Levels 3-4 }
-    (Name: 'Ashen Wyrmling';                HP: 65;   Attack: 15;  GoldReward: 100;  XPReward: 95),
-    (Name: 'Mean Looking Bird';             HP: 88;   Attack: 19;  GoldReward: 140;  XPReward: 130),
-    (Name: 'Kyle';                          HP: 115;  Attack: 23;  GoldReward: 185;  XPReward: 170),
+    (Name: 'Ashen Wyrmling';                HP: 65;   Attack: 15;  GoldReward: 100;  XPReward: 95; MinLevel: 3; MaxLevel: 4),
+    (Name: 'Mean Looking Bird';             HP: 88;   Attack: 19;  GoldReward: 140;  XPReward: 130; MinLevel: 3; MaxLevel: 4),
+    (Name: 'Kyle';                          HP: 115;  Attack: 23;  GoldReward: 185;  XPReward: 170; MinLevel: 3; MaxLevel: 4),
     { Tier 3: Levels 5-6 }
-    (Name: 'Toxic Bear Zombie';             HP: 150;  Attack: 28;  GoldReward: 245;  XPReward: 225),
-    (Name: 'Zebra Man';                     HP: 190;  Attack: 33;  GoldReward: 310;  XPReward: 285),
-    (Name: 'Really Big Squirrel';           HP: 235;  Attack: 39;  GoldReward: 385;  XPReward: 355),
+    (Name: 'Toxic Bear Zombie';             HP: 150;  Attack: 28;  GoldReward: 245;  XPReward: 225; MinLevel: 5; MaxLevel: 6),
+    (Name: 'Zebra Man';                     HP: 190;  Attack: 33;  GoldReward: 310;  XPReward: 285; MinLevel: 5; MaxLevel: 6),
+    (Name: 'Really Big Squirrel';           HP: 235;  Attack: 39;  GoldReward: 385;  XPReward: 355; MinLevel: 5; MaxLevel: 6),
     { Tier 4: Levels 7-9 }
-    (Name: 'Evil Shadow Demon';             HP: 290;  Attack: 46;  GoldReward: 480;  XPReward: 440),
-    (Name: 'Ghost Goat';                    HP: 350;  Attack: 53;  GoldReward: 580;  XPReward: 530),
-    (Name: '10k Crows in a Trenchcoat';     HP: 420;  Attack: 60;  GoldReward: 690;  XPReward: 635),
+    (Name: 'Evil Shadow Demon';             HP: 290;  Attack: 46;  GoldReward: 480;  XPReward: 440; MinLevel: 7; MaxLevel: 9),
+    (Name: 'Ghost Goat';                    HP: 350;  Attack: 53;  GoldReward: 580;  XPReward: 530; MinLevel: 7; MaxLevel: 9),
+    (Name: '10k Crows in a Trenchcoat';     HP: 420;  Attack: 60;  GoldReward: 690;  XPReward: 635; MinLevel: 7; MaxLevel: 9),
     { Tier 5: Levels 10-12 }
-    (Name: 'A Guy with 6 Arms, Named Greg'; HP: 510;  Attack: 69;  GoldReward: 820;  XPReward: 760),
-    (Name: 'Drunken Redneck';               HP: 610;  Attack: 78;  GoldReward: 960;  XPReward: 895),
-    (Name: 'Boar God';                      HP: 725;  Attack: 88;  GoldReward: 1140; XPReward: 1060),
+    (Name: 'A Guy with 6 Arms, Named Greg'; HP: 510;  Attack: 69;  GoldReward: 820;  XPReward: 760; MinLevel: 10; MaxLevel: 12),
+    (Name: 'Drunken Redneck';               HP: 610;  Attack: 78;  GoldReward: 960;  XPReward: 895; MinLevel: 10; MaxLevel: 12),
+    (Name: 'Boar God';                      HP: 725;  Attack: 88;  GoldReward: 1140; XPReward: 1060; MinLevel: 10; MaxLevel: 12),
     { Tier 6: Levels 13-15 }
-    (Name: 'Ironclad Juggernaut';           HP: 860;  Attack: 99;  GoldReward: 1350; XPReward: 1260),
-    (Name: 'Bog Witch of Ashtabula';        HP: 1010; Attack: 110; GoldReward: 1600; XPReward: 1490),
-    (Name: 'Skeletal Colossus';             HP: 1180; Attack: 122; GoldReward: 1880; XPReward: 1750),
+    (Name: 'Ironclad Juggernaut';           HP: 860;  Attack: 99;  GoldReward: 1350; XPReward: 1260; MinLevel: 13; MaxLevel: 15),
+    (Name: 'Bog Witch of Ashtabula';        HP: 1010; Attack: 110; GoldReward: 1600; XPReward: 1490; MinLevel: 13; MaxLevel: 15),
+    (Name: 'Skeletal Colossus';             HP: 1180; Attack: 122; GoldReward: 1880; XPReward: 1750; MinLevel: 13; MaxLevel: 15),
     { Tier 7: Levels 16-18 }
-    (Name: 'Clockwork Abomination';         HP: 1370; Attack: 135; GoldReward: 2200; XPReward: 2060),
-    (Name: 'Abyssal Leviathan';             HP: 1580; Attack: 149; GoldReward: 2580; XPReward: 2420),
-    (Name: 'Pale Rider of the Ridge';       HP: 1820; Attack: 164; GoldReward: 3000; XPReward: 2840),
+    (Name: 'Clockwork Abomination';         HP: 1370; Attack: 135; GoldReward: 2200; XPReward: 2060; MinLevel: 16; MaxLevel: 18),
+    (Name: 'Abyssal Leviathan';             HP: 1580; Attack: 149; GoldReward: 2580; XPReward: 2420; MinLevel: 16; MaxLevel: 18),
+    (Name: 'Pale Rider of the Ridge';       HP: 1820; Attack: 164; GoldReward: 3000; XPReward: 2840; MinLevel: 16; MaxLevel: 18),
     { Tier 8: Level 19+ }
-    (Name: 'Eldritch Forest Warden';        HP: 2090; Attack: 180; GoldReward: 3500; XPReward: 3340),
-    (Name: 'Dread Sovereign';               HP: 2400; Attack: 198; GoldReward: 4100; XPReward: 3920),
-    (Name: 'The Ancient Ashen Wyrm';        HP: 2800; Attack: 218; GoldReward: 5200; XPReward: 4800)
+    (Name: 'Eldritch Forest Warden';        HP: 2090; Attack: 180; GoldReward: 3500; XPReward: 3340; MinLevel: 19; MaxLevel: NO_LEVEL_CAP),
+    (Name: 'Dread Sovereign';               HP: 2400; Attack: 198; GoldReward: 4100; XPReward: 3920; MinLevel: 19; MaxLevel: NO_LEVEL_CAP),
+    (Name: 'The Ancient Ashen Wyrm';        HP: 2800; Attack: 218; GoldReward: 5200; XPReward: 4800; MinLevel: 19; MaxLevel: NO_LEVEL_CAP)
   );
 
 function GetKey: Char;
@@ -180,7 +189,7 @@ procedure CheckDailyReset(var P: TPlayer);
 procedure ShowStats(const P: TPlayer);
 procedure ShowLeaderboard(const CurrentPlayerName: string);
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
-procedure MonsterBracket(Level: Integer; var MinIdx, MaxIdx: Integer);
+function PickMonster(Level: Integer): TMonster;
 function IsChampion(const P: TPlayer): Boolean;
 
 implementation
@@ -786,21 +795,50 @@ begin
   Pause;
 end;
 
-{ Which slice of MONSTERS a warrior of this level meets in the woods }
-procedure MonsterBracket(Level: Integer; var MinIdx, MaxIdx: Integer);
+{ A random forest creature for a warrior of this level: any monster whose
+  level range covers it. If none does (a gap, or a level past every cap),
+  the toughest group the warrior has already outgrown the start of is used. }
+function PickMonster(Level: Integer): TMonster;
+var
+  i, Count, Pick, BestMin: Integer;
 begin
-  case Level of
-    1:      begin MinIdx := 1;  MaxIdx := 2;  end;
-    2:      begin MinIdx := 2;  MaxIdx := 3;  end;
-    3..4:   begin MinIdx := 4;  MaxIdx := 6;  end;
-    5..6:   begin MinIdx := 7;  MaxIdx := 9;  end;
-    7..9:   begin MinIdx := 10; MaxIdx := 12; end;
-    10..12: begin MinIdx := 13; MaxIdx := 15; end;
-    13..15: begin MinIdx := 16; MaxIdx := 18; end;
-    16..18: begin MinIdx := 19; MaxIdx := 21; end;
+  Count := 0;
+  for i := 1 to High(MONSTERS) do
+    if (Level >= MONSTERS[i].MinLevel) and (Level <= MONSTERS[i].MaxLevel) then
+      Inc(Count);
+
+  if Count = 0 then
+  begin
+    { Fall back to the monsters with the highest MinLevel at or below Level }
+    BestMin := -1;
+    for i := 1 to High(MONSTERS) do
+      if (MONSTERS[i].MinLevel <= Level) and (MONSTERS[i].MinLevel > BestMin) then
+        BestMin := MONSTERS[i].MinLevel;
+    if BestMin < 0 then
+    begin
+      PickMonster := MONSTERS[1];
+      Exit;
+    end;
+    for i := 1 to High(MONSTERS) do
+      if MONSTERS[i].MinLevel = BestMin then
+        Inc(Count);
+  end
   else
-    begin MinIdx := 22; MaxIdx := High(MONSTERS); end;
-  end;
+    BestMin := -1;
+
+  Pick := Random(Count);
+  for i := 1 to High(MONSTERS) do
+    if ((BestMin < 0) and (Level >= MONSTERS[i].MinLevel) and (Level <= MONSTERS[i].MaxLevel)) or
+       ((BestMin >= 0) and (MONSTERS[i].MinLevel = BestMin)) then
+    begin
+      if Pick = 0 then
+      begin
+        PickMonster := MONSTERS[i];
+        Exit;
+      end;
+      Dec(Pick);
+    end;
+  PickMonster := MONSTERS[1]; { Not reached }
 end;
 
 function IsChampion(const P: TPlayer): Boolean;

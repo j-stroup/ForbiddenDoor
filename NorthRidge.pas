@@ -11,7 +11,7 @@ unit NorthRidge;
 interface
 
 uses
-  Crt, SysUtils, GameTypes, Town, ShiftingWood;
+  Crt, SysUtils, GameTypes, Town, ShiftingWood, WyrmScale;
 
 procedure VisitNorthRidge(var P: TPlayer);
 
@@ -21,8 +21,6 @@ const
   HOURS_PER_TRIP = 5;
 
   WYRM_NAME = 'The Ashen Wyrm';
-  WYRM_HP   = 4000;
-  WYRM_ATK  = 200;
 
   { Hotkeys of the searchable places, in bit order }
   PLACE_KEYS: string[NR_PLACES] = 'WATBIHPNFGDR';
@@ -287,7 +285,7 @@ function EnterKeep(var P: TPlayer): Boolean;
 var
   Choice: Char;
   OldChamp: string;
-  GoldReward, XPReward: LongInt;
+  GoldReward, XPReward, WyrmHP, WyrmAtk, WyrmBreath: LongInt;
 begin
   EnterKeep := False;
   ClrScr;
@@ -328,9 +326,19 @@ begin
   TextColor(LightRed);
   WriteLn('The ash heaves up and pours off a body that fills the hall.');
   WriteLn('The Ashen Wyrm uncoils, and looks at you, and opens its mouth.');
+  WriteLn;
+  TextColor(DarkGray);
+  WriteLn('Its breath rolls over you, hot and slow, and your wounds close.');
+  WriteLn('It wants you whole. It has always been the same size as whoever wakes it.');
   TextColor(LightGray);
 
-  case FightFoe(P, WYRM_NAME, WYRM_HP, WYRM_ATK, True) of
+  { A fair fight: the Wyrm restores the challenger, then sizes itself to them }
+  P.HP := P.MaxHP;
+  P.MP := P.MaxMP;
+  SavePlayer(P);
+  ScaleWyrm(P, WyrmHP, WyrmAtk, WyrmBreath);
+
+  case FightFoe(P, WYRM_NAME, WyrmHP, WyrmAtk, WyrmBreath) of
     frWon:
       begin
         OldChamp := GetChampion;

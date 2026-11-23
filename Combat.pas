@@ -17,11 +17,9 @@ var
   EnemyHP, EnemyAtk, GoldReward, XPReward: LongInt;
   Action: Char;
   PlayerDmg, EnemyDmg: LongInt;
-  MinMonsterIdx, MaxMonsterIdx: Integer;
   TurnTaken: Boolean;
 begin
-  MonsterBracket(P.Level, MinMonsterIdx, MaxMonsterIdx);
-  Enemy := MONSTERS[MinMonsterIdx + Random(MaxMonsterIdx - MinMonsterIdx + 1)];
+  Enemy := PickMonster(P.Level);
   EnemyHP := Enemy.HP;
   EnemyAtk := Enemy.Attack;
   GoldReward := Enemy.GoldReward;
