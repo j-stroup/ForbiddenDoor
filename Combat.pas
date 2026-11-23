@@ -20,20 +20,7 @@ var
   MinMonsterIdx, MaxMonsterIdx: Integer;
   TurnTaken: Boolean;
 begin
-  { Smoother sliding encounter bracket }
-  case P.Level of
-    1:      begin MinMonsterIdx := 1;  MaxMonsterIdx := 2;  end;
-    2:      begin MinMonsterIdx := 2;  MaxMonsterIdx := 3;  end;
-    3..4:   begin MinMonsterIdx := 4;  MaxMonsterIdx := 6;  end;
-    5..6:   begin MinMonsterIdx := 7;  MaxMonsterIdx := 9;  end;
-    7..9:   begin MinMonsterIdx := 10; MaxMonsterIdx := 12; end;
-    10..12: begin MinMonsterIdx := 13; MaxMonsterIdx := 15; end;
-    13..15: begin MinMonsterIdx := 16; MaxMonsterIdx := 18; end;
-    16..18: begin MinMonsterIdx := 19; MaxMonsterIdx := 21; end;
-  else
-    begin MinMonsterIdx := 22; MaxMonsterIdx := High(MONSTERS); end;
-  end;
-
+  MonsterBracket(P.Level, MinMonsterIdx, MaxMonsterIdx);
   Enemy := MONSTERS[MinMonsterIdx + Random(MaxMonsterIdx - MinMonsterIdx + 1)];
   EnemyHP := Enemy.HP;
   EnemyAtk := Enemy.Attack;

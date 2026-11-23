@@ -4,7 +4,7 @@ unit Footbridge;
 interface
 
 uses
-  Crt, GameTypes, Town;
+  Crt, GameTypes, Town, ShiftingWood, NorthRidge;
 
 procedure VisitFootbridge(var P: TPlayer);
 
@@ -204,10 +204,84 @@ begin
   Pause;
 end;
 
+{ The first time a warrior of WOOD_MIN_LEVEL comes to the creek }
+procedure AnnounceWood(var P: TPlayer);
+begin
+  ClrScr;
+  TextColor(Magenta);
+  WriteLn('--- The Creek Footbridge ---');
+  TextColor(LightGray);
+  WriteLn('The creek sounds wrong today. Lower. Slower.');
+  WriteLn;
+  WriteLn('On the far bank, the trails you have walked a hundred times are gone.');
+  WriteLn('In their place the trees stand close and dark, and they are not the');
+  WriteLn('same trees. When you look away and back, they have moved.');
+  WriteLn;
+  TextColor(DarkGray);
+  WriteLn('The old folk of South Ridge have a name for what lies beyond the bridge');
+  WriteLn('for those who have grown strong enough to notice it: the Shifting Wood.');
+  TextColor(LightGray);
+  P.WoodSeen := True;
+  SavePlayer(P);
+  Pause;
+end;
+
+procedure VisitShiftingWood(var P: TPlayer);
+var
+  Choice: Char;
+begin
+  ClrScr;
+  TextColor(Magenta);
+  WriteLn('--- The Creek Footbridge ---');
+  TextColor(LightGray);
+  WriteLn('Black water slides under the planks without a sound.');
+  WriteLn('On the far side, the Shifting Wood waits.');
+  WriteLn;
+
+  if P.BridgeDone then
+  begin
+    WriteLn('You have already been into the Wood today. It will have changed by');
+    WriteLn('tomorrow. It always has.');
+    Pause;
+    Exit;
+  end;
+
+  WriteLn('Somewhere past it, if the tales are true, is a town that should not exist.');
+  WriteLn('Bandits and witches live in the Wood, and they are not right in the head.');
+  TextColor(LightRed);
+  WriteLn('Die in there and you will be lost until tomorrow, and your gold with you.');
+  WriteLn;
+  TextColor(Yellow);
+  Write('Cross into the Shifting Wood? [Y/N]: ');
+  TextColor(LightGray);
+
+  Choice := UpCase(GetKey);
+  WriteLn(Choice);
+
+  if Choice = 'Y' then
+  begin
+    if RunShiftingWood(P) then
+      VisitNorthRidge(P);
+  end
+  else
+  begin
+    WriteLn('You step back from the railing. The trees seem disappointed.');
+    Pause;
+  end;
+end;
+
 procedure VisitFootbridge(var P: TPlayer);
 var
   Choice: Char;
 begin
+  if P.Level >= WOOD_MIN_LEVEL then
+  begin
+    if not P.WoodSeen then
+      AnnounceWood(P);
+    VisitShiftingWood(P);
+    Exit;
+  end;
+
   ClrScr;
   TextColor(LightCyan);
   WriteLn('--- The Creek Footbridge ---');

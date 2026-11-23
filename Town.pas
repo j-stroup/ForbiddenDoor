@@ -22,11 +22,15 @@ function ConditionShort(C: TCondition): string;
 procedure PrintConditionDetails(C: TCondition);
 procedure PostNews(const Headline: string);
 procedure PrintNews(MaxLines: Integer);
+function DayHash(Day, Salt: LongInt): LongInt;
+function GetChampion: string;
+procedure SetChampion(const Name: string);
 
 implementation
 
 const
   NEWS_FILE     = 'NEWS.TXT';
+  CHAMPION_FILE = 'CHAMPION.TXT';
   OLD_NEWS_FILE = 'NEWSOLD.TXT';
   DAY_TAG       = '#DAY ';
   MAX_NEWS_SHOWN = 20;
@@ -103,6 +107,67 @@ begin
   if (C <> cdClear) and (C = ConditionForDay(Day - 1)) then
     C := cdClear;
   ConditionOnDay := C;
+end;
+
+{ A scrambled number (0..2^31-1) for a calendar day. Different salts give
+  unrelated sequences, so each feature can draw its own shared daily roll. }
+function DayHash(Day, Salt: LongInt): LongInt;
+var
+  H: Int64;
+begin
+  H := (Int64(Day) * 40503 + Int64(Salt) * 2246822519) mod 4294967296;
+  if H < 0 then
+    H := H + 4294967296;
+  H := H xor (H shr 16);
+  H := (H * 2654435761) mod 4294967296;
+  H := H xor (H shr 13);
+  H := (H * 1597334677) mod 4294967296;
+  H := H xor (H shr 16);
+  DayHash := H and $7FFFFFFF;
+end;
+
+{ Name of the reigning Champion of the Ridge, or '' if the Wyrm is unbested }
+function GetChampion: string;
+var
+  F: Text;
+  L: string;
+begin
+  GetChampion := '';
+  if not FileExists(CHAMPION_FILE) then
+    Exit;
+  Assign(F, CHAMPION_FILE);
+  {$I-} Reset(F); {$I+}
+  if IOResult <> 0 then
+    Exit;
+  L := '';
+  if not Eof(F) then
+    ReadLn(F, L);
+  Close(F);
+  GetChampion := Trim(L);
+end;
+
+procedure SetChampion(const Name: string);
+var
+  F: Text;
+  Retries: Integer;
+  Opened: Boolean;
+begin
+  Assign(F, CHAMPION_FILE);
+  Retries := 0;
+  repeat
+    {$I-} Rewrite(F); {$I+}
+    Opened := IOResult = 0;
+    if not Opened then
+    begin
+      Inc(Retries);
+      Delay(25);
+    end;
+  until Opened or (Retries >= 20);
+  if not Opened then
+    Exit;
+  WriteLn(F, Name);
+  WriteLn(F, FormatDateTime('yyyy-mm-dd hh:nn', Now));
+  Close(F);
 end;
 
 function TodayCondition: TCondition;

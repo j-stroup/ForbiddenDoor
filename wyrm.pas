@@ -2,7 +2,7 @@
 program AshenWyrm;
 
 uses
-  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys;
+  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys, ShiftingWood;
 
 var
   Hero: TPlayer;
@@ -39,6 +39,7 @@ end;
 procedure ShowCrier;
 var
   C: TCondition;
+  Champ: string;
 begin
   ClrScr;
   C := TodayCondition;
@@ -53,6 +54,14 @@ begin
   TextColor(LightCyan);
   WriteLn('TODAY: ', ConditionName(C));
   PrintConditionDetails(C);
+  PrintWoodWhisper;
+  WriteLn;
+  Champ := GetChampion;
+  TextColor(Yellow);
+  if Champ <> '' then
+    WriteLn('Champion of the Ridge: ', Champ)
+  else
+    WriteLn('Champion of the Ridge: none. The Ashen Wyrm has never been bested.');
   WriteLn;
   PrintNews(12);
   Pause;
@@ -61,7 +70,7 @@ end;
 procedure TownMenu;
 var
   Choice: Char;
-  StatusLine: string;
+  StatusLine, Champ, BridgeLabel: string;
 begin
   CheckDailyReset(Hero);
   ClrScr;
@@ -114,6 +123,19 @@ begin
   Write(PadRight('Today: ' + ConditionName(TodayCondition) + ' - ' + ConditionShort(TodayCondition), 71));
   TextColor(DarkGray);
   WriteLn(' |');
+
+  { The reigning Champion of the Ridge, for everyone to see }
+  Champ := GetChampion;
+  Write('| ');
+  TextColor(Yellow);
+  if Champ = '' then
+    Write(PadRight('Champion of the Ridge: none - the Ashen Wyrm is unbested', 71))
+  else if UpperCase(Champ) = UpperCase(Trim(Hero.Name)) then
+    Write(PadRight('Champion of the Ridge: YOU, ' + Champ, 71))
+  else
+    Write(PadRight('Champion of the Ridge: ' + Champ, 71));
+  TextColor(DarkGray);
+  WriteLn(' |');
   WriteLn('+====================================+====================================+');
 
   { Column Headers }
@@ -131,7 +153,11 @@ begin
   { 8 Rows (15 Menu Options) }
   PrintDualRow('W', 'Weapon Shop',             'F', 'Enter the Forest (Hunt)');
   PrintDualRow('A', 'Armor Shop',              'G', 'Old Cemetery (Crypt)');
-  PrintDualRow('T', 'Training Grounds',        'C', 'Creek Footbridge (Explore)');
+  if (Hero.Level >= WOOD_MIN_LEVEL) and Hero.WoodSeen then
+    BridgeLabel := 'Footbridge (Shifting Wood)'
+  else
+    BridgeLabel := 'Creek Footbridge (Explore)';
+  PrintDualRow('T', 'Training Grounds',        'C', BridgeLabel);
   PrintDualRow('B', 'South Ridge Bank',        'D', 'Dark Back Alleys');
   PrintDualRow('I', 'Inn (Rest & Recover)',    'V', 'View Warrior Stats');
   PrintDualRow('H', 'Olde Hallowed Tavern',    'R', 'Hall of Fame (Rankings)');
@@ -191,12 +217,22 @@ begin
   if not LoginPlayer(Hero) then
     Halt;
 
-  ShowCrier;
-
-  repeat
-    TownMenu;
-  until QuitGame;
+  if not Hero.LostInWood then
+  begin
+    ShowCrier;
+    repeat
+      TownMenu;
+    until QuitGame or Hero.LostInWood;
+  end;
 
   ClrScr;
-  WriteLn('Progress saved. Safe travels, ', Hero.Name, '.');
+  if Hero.LostInWood then
+  begin
+    TextColor(LightRed);
+    WriteLn(Hero.Name, ' is lost in the Shifting Wood.');
+    TextColor(LightGray);
+    WriteLn('The woodcutters will find you at dawn. Come back tomorrow.');
+  end
+  else
+    WriteLn('Progress saved. Safe travels, ', Hero.Name, '.');
 end.

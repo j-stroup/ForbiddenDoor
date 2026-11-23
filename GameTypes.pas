@@ -24,6 +24,14 @@ const
   CRYPT_OPEN     = 2;
   CRYPT_USED     = 3;
 
+  { The Footbridge leads into the Shifting Wood from this level on }
+  WOOD_MIN_LEVEL = 13;
+
+  { North Ridge has this many places to search; the Ashen Keep appears
+    once NR_KEEP_REVEAL of them have been searched }
+  NR_PLACES      = 12;
+  NR_KEEP_REVEAL = 8;
+
 type
   TItem = record
     Name: string[25];
@@ -62,6 +70,12 @@ type
     PoorBoxDone: Boolean;
     AlleyHeat: Integer;
     CryptState: Byte;
+    { The Shifting Wood and North Ridge }
+    WoodSeen: Boolean;        { Has been told the footbridge now leads into the Wood }
+    LostInWood: Boolean;      { Died beyond the footbridge; done until tomorrow }
+    NRVisits: Integer;        { Times this warrior has reached North Ridge }
+    NRSearched: Word;         { Bit per North Ridge place already searched }
+    WyrmWins: Integer;        { Times this warrior has bested the Ashen Wyrm }
     { Bumped on every save; detects the same warrior playing on two nodes }
     SaveCount: LongInt;
   end;
@@ -166,6 +180,8 @@ procedure CheckDailyReset(var P: TPlayer);
 procedure ShowStats(const P: TPlayer);
 procedure ShowLeaderboard(const CurrentPlayerName: string);
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
+procedure MonsterBracket(Level: Integer; var MinIdx, MaxIdx: Integer);
+function IsChampion(const P: TPlayer): Boolean;
 
 implementation
 
@@ -414,6 +430,7 @@ begin
     P.PoorBoxDone := False;
     P.AlleyHeat := 0;
     P.CryptState := CRYPT_UNROLLED;
+    P.LostInWood := False;
 
     { 5% daily interest, capped per level so balances cannot snowball }
     Interest := P.BankGold div 20;
@@ -557,7 +574,7 @@ var
   Top: array[1..MAX_SHOWN] of TPlayer;
   Rec: TPlayer;
   Count, i, Slot: Integer;
-  WeaponName: string;
+  WeaponName, Champ, Shown: string;
 begin
   if MaxRows > MAX_SHOWN then
     MaxRows := MAX_SHOWN;
@@ -598,6 +615,14 @@ begin
     Exit;
   end;
 
+  Champ := GetChampion;
+  if Champ <> '' then
+  begin
+    TextColor(Yellow);
+    WriteLn('Champion of the Ridge: ', Champ, '  (bested the Ashen Wyrm)');
+    WriteLn;
+  end;
+
   TextColor(LightCyan);
   WriteLn('Rank  ', PadRight('Warrior', 31), 'Lvl         XP   Weapon');
   TextColor(DarkGray);
@@ -618,8 +643,12 @@ begin
     else
       WeaponName := '?';
 
+    Shown := Top[i].Name;
+    if (Champ <> '') and (UpperCase(Trim(Top[i].Name)) = UpperCase(Champ)) then
+      Shown := Shown + ' *';
+
     WriteLn('#', i:2, '   ',
-            PadRight(Top[i].Name, 30), ' ',
+            PadRight(Shown, 30), ' ',
             Top[i].Level:3, '  ',
             Top[i].XP:9, '   ',
             WeaponName);
@@ -755,6 +784,31 @@ begin
   WriteLn('Weapon     : ', WEAPONS[P.WeaponIndex].Name, ' (+', WEAPONS[P.WeaponIndex].StatBonus, ' Atk)');
   WriteLn('Armor      : ', ARMORS[P.ArmorIndex].Name, ' (+', ARMORS[P.ArmorIndex].StatBonus, ' Def)');
   Pause;
+end;
+
+{ Which slice of MONSTERS a warrior of this level meets in the woods }
+procedure MonsterBracket(Level: Integer; var MinIdx, MaxIdx: Integer);
+begin
+  case Level of
+    1:      begin MinIdx := 1;  MaxIdx := 2;  end;
+    2:      begin MinIdx := 2;  MaxIdx := 3;  end;
+    3..4:   begin MinIdx := 4;  MaxIdx := 6;  end;
+    5..6:   begin MinIdx := 7;  MaxIdx := 9;  end;
+    7..9:   begin MinIdx := 10; MaxIdx := 12; end;
+    10..12: begin MinIdx := 13; MaxIdx := 15; end;
+    13..15: begin MinIdx := 16; MaxIdx := 18; end;
+    16..18: begin MinIdx := 19; MaxIdx := 21; end;
+  else
+    begin MinIdx := 22; MaxIdx := High(MONSTERS); end;
+  end;
+end;
+
+function IsChampion(const P: TPlayer): Boolean;
+var
+  Champ: string;
+begin
+  Champ := GetChampion;
+  IsChampion := (Champ <> '') and (UpperCase(Champ) = UpperCase(Trim(P.Name)));
 end;
 
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
