@@ -1,0 +1,19 @@
+# Public log entries from before commits carried a "Log:" line.
+# One per line:  yyyy-MM-dd HH:mm  text   (lines starting with # are ignored)
+# Edit or delete freely; Update-SiteLog.ps1 merges these with commit entries.
+# Kept spoiler-free on purpose: nothing about what lies past the footbridge.
+
+2026-11-17 14:50  The first warrior wanders into South Ridge
+2026-11-17 20:42  The forest grows stranger: random events on the hunt
+2026-11-18 08:00  New corners of town, and a challenge waiting at the Tavern
+2026-11-18 08:08  The Tavern rumor board goes up
+2026-11-18 15:01  Something stirs beneath the old cemetery
+2026-11-19 15:39  Days now turn over at midnight, real time
+2026-11-19 19:52  The Parish Chapel and the back alleys open
+2026-11-23 07:51  The South Ridge Crier prints its first edition
+2026-11-23 14:38  No two challengers face the same Ashen Wyrm
+2026-11-23 14:59  Sleep safe at the Inn, or take your chances in the street
+2026-11-23 14:59  Granny Wicks opens her Healer's Hut
+2026-11-24 07:46  Ambushed sleepers now wake fighting at full strength
+2026-11-24 07:56  The Town Hall begins selling deeds to the town's businesses
+2026-11-24 14:41  Choose your calling: Fighter, Mage, or Rogue
