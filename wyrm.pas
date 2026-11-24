@@ -89,7 +89,7 @@ begin
   WriteLn('--- Turning In ---');
   TextColor(LightGray);
   WriteLn('You have no room at the Inn tonight. Sleep in the street and anyone may');
-  WriteLn('jump you while you are away, with whatever HP you go to bed with.');
+  WriteLn('jump you while you are away for the gold in your pocket.');
   if Hero.Gold > 0 then
   begin
     TextColor(LightRed);

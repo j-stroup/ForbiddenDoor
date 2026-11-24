@@ -3,8 +3,10 @@ unit Streets;
 
 { Street ambushes. Warriors who log off without a room at the Inn sleep
   where they dropped, and other warriors may prowl the streets and jump
-  them. The sleeper fights back groggy, with their own gear and whatever
-  HP they went to bed with. The winner takes the loser's pocket gold.
+  them. To keep it fair, the sleeper always fights back at full strength
+  and full HP with their own gear, however hurt they went to bed, and the
+  fight never changes their real HP. The winner takes the loser's
+  pocket gold.
   Each warrior can be ambushed once a day at most. }
 
 interface
@@ -76,7 +78,7 @@ begin
   GatherTargets := Count;
 end;
 
-{ The fight itself. The sleeper is groggy and hits at three-quarter strength.
+{ The fight itself. The sleeper fights at full HP and full strength.
   Returns True if the attacker won. Fled is set if the attacker ran. }
 function StreetFight(var P: TPlayer; var V: TPlayer; var Fled: Boolean): Boolean;
 var
@@ -85,7 +87,7 @@ var
   TurnTaken: Boolean;
 begin
   Fled := False;
-  VictimHP := V.HP;
+  VictimHP := V.MaxHP; { Always a fair fight, whatever HP they slept with }
   repeat
     TurnTaken := False;
     WriteLn;
@@ -111,9 +113,6 @@ begin
     else if Action = 'R' then
     begin
       Fled := True;
-      V.HP := VictimHP;
-      if V.HP < 1 then
-        V.HP := 1;
       StreetFight := False;
       SavePlayer(P);
       Exit;
@@ -121,7 +120,7 @@ begin
 
     if TurnTaken and (VictimHP > 0) then
     begin
-      Dmg := (((V.Strength div 2) + Random(V.Strength) + WEAPONS[V.WeaponIndex].StatBonus) * 3) div 4
+      Dmg := (V.Strength div 2) + Random(V.Strength) + WEAPONS[V.WeaponIndex].StatBonus
              - ARMORS[P.ArmorIndex].StatBonus;
       if Dmg < 1 then
         Dmg := 1;
@@ -130,16 +129,13 @@ begin
       else
         P.HP := P.HP - Dmg;
       TextColor(LightRed);
-      WriteLn(V.Name, ' lashes out half-asleep with ', WEAPONS[V.WeaponIndex].Name,
+      WriteLn(V.Name, ' strikes back with ', WEAPONS[V.WeaponIndex].Name,
               ' for ', Dmg, ' damage!');
       TextColor(LightGray);
       SavePlayer(P);
     end;
   until (VictimHP <= 0) or (P.HP <= 0);
 
-  if VictimHP < 1 then
-    VictimHP := 1;
-  V.HP := VictimHP;
   StreetFight := P.HP > 0;
 end;
 
@@ -165,7 +161,8 @@ begin
   ClrScr;
   TextColor(LightRed);
   WriteLn('You find ', V.Name, ' (Level ', V.Level, ') curled in a doorway, snoring.');
-  WriteLn('You draw your ', WEAPONS[P.WeaponIndex].Name, '. Their eyes snap open.');
+  WriteLn('You draw your ', WEAPONS[P.WeaponIndex].Name, '. Their eyes snap open and they');
+  WriteLn('are on their feet in an instant, wide awake and ready.');
   TextColor(LightGray);
 
   Won := StreetFight(P, V, Fled);
