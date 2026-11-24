@@ -6,7 +6,7 @@ unit Holdings;
   Council allows only one deed per warrior.
 
   Income does not depend on how many players there are. Each owned
-  business pays its owner TAKINGS_PCT percent of the deed's value every
+  business pays its owner TAKINGS_PCT percent of its BASE price every
   day (more during the Harvest Festival), plus SPEND_CUT_PCT percent of
   whatever other warriors spend there. The manager keeps the place open
   for TILL_DAYS days without the owner; after that the shutters stay down
@@ -14,12 +14,17 @@ unit Holdings;
 
   Deeds change hands three ways:
     - Buyout: anyone may buy an owned deed for BUYOUT_PCT percent of what
-      the owner paid. The owner gets the full price, so being bought out
-      is a profit, not a loss. A new deed is protected for PROTECT_DAYS.
+      the owner paid, never more than MAX_PRICE_PCT percent of its base
+      price. The owner gets the full price, so being bought out is never
+      a loss. A new deed is protected for PROTECT_DAYS.
     - Neglect: an owner who stays away NEGLECT_DAYS days loses the deed
       to the Council, and it goes back on sale at its base price.
     - Selling back: the owner may sell to the Council for SELLBACK_PCT
-      percent of what they paid.
+      percent of the base price.
+
+  Income and the sell-back price are tied to the fixed base price, not to
+  what the owner paid, so two warriors buying a deed back and forth can
+  only pass gold between themselves, never create it.
 
   Payments to warriors who are not playing go into LEDGER.DAT and are
   paid into their bank vault the next time they log in. }
@@ -47,6 +52,7 @@ const
   NEGLECT_DAYS  = 14;       { Days away before the Council seizes the deed }
   PROTECT_DAYS  = 3;        { Days after a purchase before a buyout is allowed }
   BUYOUT_PCT    = 125;
+  MAX_PRICE_PCT = 200;       { Buyouts stop climbing at this much of base }
   SELLBACK_PCT  = 75;
 
   PROP_NAMES: array[1..NR_PROPS] of string[30] = (
@@ -82,8 +88,8 @@ procedure ShopTakings(Prop: Integer; const Spender: string; Amount: LongInt);
 procedure PrintProprietor(Prop: Integer);
 procedure VisitTownHall(var P: TPlayer);
 
-function DailyTakings(Value, Day: LongInt): LongInt;
-function BuyoutPrice(const R: TProperty): LongInt;
+function DailyTakings(Prop: Integer; Day: LongInt): LongInt;
+function BuyoutPrice(const R: TProperty; Prop: Integer): LongInt;
 procedure AddPayout(const Name: string; Amount: LongInt; const Note: string);
 
 implementation
@@ -92,22 +98,28 @@ type
   TPropFile = file of TProperty;
   TPropArray = array[1..NR_PROPS] of TProperty;
 
-function DailyTakings(Value, Day: LongInt): LongInt;
+function DailyTakings(Prop: Integer; Day: LongInt): LongInt;
 var
   T: LongInt;
 begin
-  T := (Value div 100) * TAKINGS_PCT;
+  T := (PROP_BASE[Prop] div 100) * TAKINGS_PCT;
   if ConditionOnDay(Day) = cdFestival then
     T := (T div 2) * 3;
   DailyTakings := T;
 end;
 
-function BuyoutPrice(const R: TProperty): LongInt;
+function BuyoutPrice(const R: TProperty; Prop: Integer): LongInt;
+var
+  Price, Cap: LongInt;
 begin
+  Cap := (PROP_BASE[Prop] div 100) * MAX_PRICE_PCT;
   if R.Owner = '' then
-    BuyoutPrice := R.Value
+    Price := PROP_BASE[Prop]
   else
-    BuyoutPrice := (R.Value div 100) * BUYOUT_PCT;
+    Price := (R.Value div 100) * BUYOUT_PCT;
+  if Price > Cap then
+    Price := Cap;
+  BuyoutPrice := Price;
 end;
 
 function OpenRetry(var F: TPropFile): Boolean;
@@ -164,7 +176,7 @@ begin
   while d <= Today do
   begin
     if d <= R.CollectDay + TILL_DAYS then
-      AddGold(R.Till, DailyTakings(R.Value, d));
+      AddGold(R.Till, DailyTakings(i, d));
     Inc(d);
   end;
   if Today > R.TakingsDay then
@@ -466,7 +478,7 @@ begin
     Exit;
   end;
 
-  Price := BuyoutPrice(Seen);
+  Price := BuyoutPrice(Seen, i);
   if Seen.Owner = '' then
     WriteLn(PROP_NAMES[i], ' is for sale from the Council for ', Price, ' gold.')
   else
@@ -474,7 +486,7 @@ begin
     WriteLn(Seen.Owner, ' owns ', PROP_NAMES[i], '. A buyout costs ', Price, ' gold,');
     WriteLn('all of which goes to ', Seen.Owner, '.');
   end;
-  WriteLn('It would earn you about ', DailyTakings(Price, Today), ' gold a day, plus ',
+  WriteLn('It would earn you about ', DailyTakings(i, Today), ' gold a day, plus ',
           SPEND_CUT_PCT, '% of what others spend there.');
   WriteLn('The price comes out of your bank vault (', P.BankGold, ' gold).');
   if P.BankGold < Price then
@@ -497,7 +509,7 @@ begin
   OldTill := 0;
   if OpenProps(F, A) then
   begin
-    if (A[i].Owner = Seen.Owner) and (BuyoutPrice(A[i]) = Price) and
+    if (A[i].Owner = Seen.Owner) and (BuyoutPrice(A[i], i) = Price) and
        (OwnedBy(A, P.Name) = 0) then
     begin
       OldOwner := A[i].Owner;
@@ -558,11 +570,11 @@ begin
     Pause;
     Exit;
   end;
-  Pay := (A[Mine].Value div 100) * SELLBACK_PCT;
+  Pay := (PROP_BASE[Mine] div 100) * SELLBACK_PCT;
   CloseProps(F, A);
 
   WriteLn('The Council will buy ', PROP_NAMES[Mine], ' back for ', Pay, ' gold');
-  WriteLn('(', SELLBACK_PCT, '% of what you paid), plus whatever is in the till.');
+  WriteLn('(', SELLBACK_PCT, '% of its base price), plus whatever is in the till.');
   if not AskYes('Sell it?') then
     Exit;
 
@@ -575,7 +587,7 @@ begin
     Pause;
     Exit;
   end;
-  Pay := (A[Mine].Value div 100) * SELLBACK_PCT;
+  Pay := (PROP_BASE[Mine] div 100) * SELLBACK_PCT;
   AddGold(Pay, A[Mine].Till);
   FreshDeed(A[Mine], Mine, Trunc(Date));
   CloseProps(F, A);
@@ -626,7 +638,7 @@ begin
       else
         Status := A[i].Owner;
       Write('[', i, '] ', PadRight(PROP_NAMES[i], 28), PadRight(Copy(Status, 1, 21), 22),
-            PadRight(IntToStr(BuyoutPrice(A[i])), 11), DailyTakings(BuyoutPrice(A[i]), Today));
+            PadRight(IntToStr(BuyoutPrice(A[i], i)), 11), DailyTakings(i, Today));
       if (A[i].Owner <> '') and (Today - A[i].BoughtDay < PROTECT_DAYS) then
       begin
         TextColor(DarkGray);
@@ -637,8 +649,9 @@ begin
     end;
     WriteLn;
     TextColor(DarkGray);
-    WriteLn('Owned deeds sell for ', BUYOUT_PCT, '% of what the owner paid, all of it to the owner.');
-    WriteLn('Each business pays ', TAKINGS_PCT, '% of its deed a day, plus ', SPEND_CUT_PCT,
+    WriteLn('Owned deeds sell for ', BUYOUT_PCT, '% of what the owner paid (at most ', MAX_PRICE_PCT,
+            '% of base), all to the owner.');
+    WriteLn('Each business pays ', TAKINGS_PCT, '% of its base price a day, plus ', SPEND_CUT_PCT,
             '% of what others spend.');
     WriteLn('Owners who stay away ', NEGLECT_DAYS, ' days lose the deed to the Council.');
     TextColor(LightGray);

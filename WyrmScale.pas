@@ -4,12 +4,13 @@ unit WyrmScale;
 { Sizes the Ashen Wyrm to whoever wakes it.
 
   Rather than fixed stats (which only the top few warriors could ever
-  beat), the Wyrm is tuned against the challenger's own stats, gear and
-  skills. When a warrior wakes it, the game plays out a batch of quick
-  simulated fights using the real combat rules and adjusts the Wyrm
-  until a sensible fighter would win about WYRM_TARGET_WIN percent of
-  the time. A level 13 warrior and a level 40 warrior face the same odds,
-  and new weapons, armor or skills are accounted for automatically. }
+  beat), the Wyrm is tuned against the challenger's own stats, gear,
+  calling and skills. When a warrior wakes it, the game plays out a batch
+  of quick simulated fights using the real combat rules and adjusts the
+  Wyrm until a sensible fighter would win about WYRM_TARGET_WIN percent
+  of the time. A level 13 warrior and a level 40 warrior face the same
+  odds, whatever their calling, and new weapons, armor or skills are
+  accounted for automatically. }
 
 interface
 
@@ -39,10 +40,31 @@ const
   CALIBRATION_STEPS  = 13;
   CALIBRATION_SEED   = 1993;
 
-{ The same damage roll as an [A]ttack in FightFoe }
-function WeaponHit(const P: TPlayer): LongInt;
+{ Average weapon blow, counting a Rogue's criticals }
+function AvgWeaponHit(const P: TPlayer): LongInt;
+var
+  A: LongInt;
 begin
-  WeaponHit := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
+  A := (P.Strength div 2) + ((P.Strength - 1) div 2) + WEAPONS[P.WeaponIndex].StatBonus;
+  if P.Calling = CL_ROGUE then
+    A := A + (A * ROGUE_CRIT_PCT) div 100;
+  AvgWeaponHit := A;
+end;
+
+{ Average result of one cast of skill i }
+function AvgSkill(const P: TPlayer; i: Integer): LongInt;
+var
+  E: LongInt;
+begin
+  E := SKILLS[i].Power + P.Level * 2;
+  if (P.Calling = CL_MAGE) and (not SKILLS[i].IsHeal) then
+    E := (E * MAGE_SPELL_PCT) div 100;
+  AvgSkill := E;
+end;
+
+function Unlocked(const P: TPlayer; i: Integer): Boolean;
+begin
+  Unlocked := SkillUsable(P, i) and (P.Level >= SKILLS[i].MinLevel);
 end;
 
 { Best unlocked healing skill the warrior can pay for, or 0 }
@@ -52,22 +74,53 @@ var
 begin
   Best := 0;
   for i := 1 to High(SKILLS) do
-    if SKILLS[i].IsHeal and (P.Level >= SKILLS[i].MinLevel) and (MP >= SKILLS[i].MPCost) then
-      if (Best = 0) or (SKILLS[i].Power > SKILLS[Best].Power) then
+    if SKILLS[i].IsHeal and Unlocked(P, i) and (MP >= SKILLS[i].MPCost) then
+      if (Best = 0) or (AvgSkill(P, i) > AvgSkill(P, Best)) then
         Best := i;
   BestHeal := Best;
 end;
 
+{ MP the warrior keeps back for one emergency heal }
+function HealReserve(const P: TPlayer): LongInt;
+var
+  Best: Integer;
+begin
+  Best := BestHeal(P, 32767);
+  if Best = 0 then
+    HealReserve := 0
+  else
+    HealReserve := SKILLS[Best].MPCost;
+end;
+
+{ Hardest-hitting attack skill affordable without touching the heal
+  reserve, if it beats a weapon blow; otherwise 0 }
+function BestStrike(const P: TPlayer; MP, Reserve: LongInt): Integer;
+var
+  i, Best: Integer;
+begin
+  Best := 0;
+  for i := 1 to High(SKILLS) do
+    if (not SKILLS[i].IsHeal) and Unlocked(P, i) and (MP >= SKILLS[i].MPCost + Reserve) and
+       (AvgSkill(P, i) > AvgWeaponHit(P)) then
+      if (Best = 0) or (AvgSkill(P, i) > AvgSkill(P, Best)) then
+        Best := i;
+  BestStrike := Best;
+end;
+
 { Plays out Trials fights with the real combat rules and a simple sensible
-  strategy: heal below 40% HP while MP lasts, otherwise swing. Returns the
+  strategy: heal below 40% HP while MP lasts, otherwise cast the best
+  attack spell that leaves MP for a heal, otherwise swing. Returns the
   percentage won. }
 function SimulateWyrmWins(const P: TPlayer; WyrmHP, WyrmAtk, WyrmBreath: LongInt;
                           Trials: Integer): Integer;
 var
-  t, Wins, Turn, Heal, Rounds: Integer;
-  HP, MP, Foe, Dmg: LongInt;
+  t, Wins, Turn, Skill, Rounds: Integer;
+  HP, MP, Foe, Dmg, Reserve, Armor: LongInt;
+  Crit: Boolean;
 begin
   Wins := 0;
+  Reserve := HealReserve(P);
+  Armor := ArmorValue(P);
   for t := 1 to Trials do
   begin
     HP := P.MaxHP;
@@ -77,19 +130,28 @@ begin
     Rounds := 0;
     repeat
       Inc(Rounds);
-      Heal := 0;
+      Skill := 0;
       if HP * 10 < LongInt(P.MaxHP) * 4 then
-        Heal := BestHeal(P, MP);
+        Skill := BestHeal(P, MP);
 
-      if Heal > 0 then
+      if Skill > 0 then
       begin
-        MP := MP - SKILLS[Heal].MPCost;
-        HP := HP + SKILLS[Heal].Power + Random(P.Level * 4 + 1);
+        MP := MP - SKILLS[Skill].MPCost;
+        HP := HP + SkillEffect(P, Skill);
         if HP > P.MaxHP then
           HP := P.MaxHP;
       end
       else
-        Foe := Foe - WeaponHit(P);
+      begin
+        Skill := BestStrike(P, MP, Reserve);
+        if Skill > 0 then
+        begin
+          MP := MP - SKILLS[Skill].MPCost;
+          Foe := Foe - SkillEffect(P, Skill);
+        end
+        else
+          Foe := Foe - WeaponDamage(P, Crit);
+      end;
 
       if Foe > 0 then
       begin
@@ -98,7 +160,7 @@ begin
           Dmg := (WyrmBreath * (85 + Random(31))) div 100
         else
         begin
-          Dmg := (Random(WyrmAtk) + 1) - ARMORS[P.ArmorIndex].StatBonus;
+          Dmg := (Random(WyrmAtk) + 1) - Armor;
           if Dmg < 1 then
             Dmg := 1;
         end;
@@ -119,7 +181,7 @@ begin
   DmgUnit := (LongInt(P.MaxHP) * Ferocity) div 1000;
   if DmgUnit < 1 then
     DmgUnit := 1;
-  Atk := ARMORS[P.ArmorIndex].StatBonus + DmgUnit;
+  Atk := ArmorValue(P) + DmgUnit;
   Breath := (DmgUnit * 3) div 5;
   if Breath < 1 then
     Breath := 1;
@@ -127,12 +189,11 @@ end;
 
 procedure ScaleWyrm(const P: TPlayer; var WyrmHP, WyrmAtk, WyrmBreath: LongInt);
 var
-  AvgHit, Lo, Hi, Mid, SavedSeed: LongInt;
+  Lo, Hi, Mid, SavedSeed: LongInt;
   Step: Integer;
 begin
   { Long enough to be an ordeal, sized to the challenger's own blows }
-  AvgHit := (P.Strength div 2) + ((P.Strength - 1) div 2) + WEAPONS[P.WeaponIndex].StatBonus;
-  WyrmHP := AvgHit * WYRM_BLOWS;
+  WyrmHP := AvgWeaponHit(P) * WYRM_BLOWS;
   if WyrmHP < MIN_WYRM_HP then
     WyrmHP := MIN_WYRM_HP;
 

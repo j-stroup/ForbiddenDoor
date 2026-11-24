@@ -17,7 +17,8 @@ var
   EnemyHP, EnemyAtk, GoldReward, XPReward: LongInt;
   Action: Char;
   PlayerDmg, EnemyDmg: LongInt;
-  TurnTaken: Boolean;
+  TurnTaken, Crit: Boolean;
+  Siphon: LongInt;
 begin
   Enemy := PickMonster(P.Level);
   EnemyHP := Enemy.HP;
@@ -37,6 +38,8 @@ begin
     TextColor(Red);
     WriteLn('Its eyes burn red beneath the blood moon. It looks stronger - and richer.');
   end;
+  if P.Calling = CL_ROGUE then
+    GoldReward := (GoldReward * ROGUE_GOLD_PCT) div 100;
   TextColor(LightGray);
 
   repeat
@@ -50,8 +53,11 @@ begin
     if Action = 'A' then
     begin
       { Reliable base damage from Strength div 2 + random roll + weapon bonus }
-      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
+      PlayerDmg := WeaponDamage(P, Crit);
       EnemyHP := EnemyHP - PlayerDmg;
+      TextColor(Yellow);
+      if Crit then
+        Write('CRITICAL! ');
       TextColor(LightGreen);
       WriteLn('You swing your ', WEAPONS[P.WeaponIndex].Name, ' for ', PlayerDmg, ' damage!');
       TextColor(LightGray);
@@ -71,7 +77,7 @@ begin
 
     if TurnTaken and (EnemyHP > 0) then
     begin
-      EnemyDmg := (Random(EnemyAtk) + 1) - ARMORS[P.ArmorIndex].StatBonus;
+      EnemyDmg := (Random(EnemyAtk) + 1) - ArmorValue(P);
       if EnemyDmg < 1 then
         EnemyDmg := 1;
 
@@ -99,6 +105,15 @@ begin
     WriteLn('Victory! You claim ', GoldReward, ' gold and ', XPReward, ' XP.');
     AddGold(P.Gold, GoldReward);
     P.XP := P.XP + XPReward;
+    if (P.Calling = CL_MAGE) and (P.MP < P.MaxMP) then
+    begin
+      Siphon := (LongInt(P.MaxMP) * MAGE_SIPHON_PCT) div 100;
+      if Siphon > P.MaxMP - P.MP then
+        Siphon := P.MaxMP - P.MP;
+      P.MP := P.MP + Siphon;
+      TextColor(LightCyan);
+      WriteLn('You draw the last of its life into yourself. +', Siphon, ' MP.');
+    end;
 
     if P.XP >= XPForNextLevel(P.Level) then
     begin

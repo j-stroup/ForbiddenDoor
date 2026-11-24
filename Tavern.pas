@@ -135,6 +135,7 @@ var
   OpponentName: string[30];
   OppHP, OppAttack, GoldPot, XPPot: LongInt;
   PlayerDmg, OppDmg: LongInt;
+  Crit: Boolean;
   Action: Char;
 begin
   ClrScr;
@@ -189,14 +190,17 @@ begin
 
     if Action = 'A' then
     begin
-      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
+      PlayerDmg := WeaponDamage(P, Crit);
       OppHP := OppHP - PlayerDmg;
+      TextColor(Yellow);
+      if Crit then
+        Write('CRITICAL! ');
       TextColor(LightGreen);
       WriteLn('You strike ', OpponentName, ' for ', PlayerDmg, ' damage!');
 
       if OppHP > 0 then
       begin
-        OppDmg := (Random(OppAttack) + 1) - ARMORS[P.ArmorIndex].StatBonus;
+        OppDmg := (Random(OppAttack) + 1) - ArmorValue(P);
         if OppDmg < 2 then
           OppDmg := 2;
 

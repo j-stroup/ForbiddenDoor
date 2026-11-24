@@ -162,7 +162,7 @@ var
   Action: Char;
   PlayerDmg, FoeDmg: LongInt;
   Turn: Integer;
-  TurnTaken: Boolean;
+  TurnTaken, Crit: Boolean;
 begin
   Turn := 0;
   repeat
@@ -174,8 +174,11 @@ begin
 
     if Action = 'A' then
     begin
-      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
+      PlayerDmg := WeaponDamage(P, Crit);
       FoeHP := FoeHP - PlayerDmg;
+      TextColor(Yellow);
+      if Crit then
+        Write('CRITICAL! ');
       TextColor(LightGreen);
       WriteLn('You strike with your ', WEAPONS[P.WeaponIndex].Name, ' for ', PlayerDmg, ' damage!');
       TextColor(LightGray);
@@ -203,7 +206,7 @@ begin
       end
       else
       begin
-        FoeDmg := (Random(FoeAtk) + 1) - ARMORS[P.ArmorIndex].StatBonus;
+        FoeDmg := (Random(FoeAtk) + 1) - ArmorValue(P);
         if FoeDmg < 1 then
           FoeDmg := 1;
         TextColor(LightRed);

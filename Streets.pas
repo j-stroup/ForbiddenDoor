@@ -84,7 +84,7 @@ function StreetFight(var P: TPlayer; var V: TPlayer; var Fled: Boolean): Boolean
 var
   Action: Char;
   Dmg, VictimHP: LongInt;
-  TurnTaken: Boolean;
+  TurnTaken, Crit: Boolean;
 begin
   Fled := False;
   VictimHP := V.MaxHP; { Always a fair fight, whatever HP they slept with }
@@ -98,11 +98,13 @@ begin
 
     if Action = 'A' then
     begin
-      Dmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus
-             - ARMORS[V.ArmorIndex].StatBonus;
+      Dmg := WeaponDamage(P, Crit) - ArmorValue(V);
       if Dmg < 1 then
         Dmg := 1;
       VictimHP := VictimHP - Dmg;
+      TextColor(Yellow);
+      if Crit then
+        Write('CRITICAL! ');
       TextColor(LightGreen);
       WriteLn('You hit ', V.Name, ' for ', Dmg, ' damage!');
       TextColor(LightGray);
@@ -120,10 +122,14 @@ begin
 
     if TurnTaken and (VictimHP > 0) then
     begin
-      Dmg := (V.Strength div 2) + Random(V.Strength) + WEAPONS[V.WeaponIndex].StatBonus
-             - ARMORS[P.ArmorIndex].StatBonus;
+      Dmg := WeaponDamage(V, Crit) - ArmorValue(P);
       if Dmg < 1 then
         Dmg := 1;
+      if Crit then
+      begin
+        TextColor(Yellow);
+        Write('CRITICAL! ');
+      end;
       if Dmg > P.HP then
         P.HP := 0
       else
@@ -268,7 +274,8 @@ begin
   TextColor(LightGray);
   for i := 1 to Count do
     WriteLn('  [', i:2, '] ', PadRight(Targets[i].Rec.Name, 30), ' Lvl ', Targets[i].Rec.Level:3,
-            '   ', PurseLooks(Targets[i].Rec.Gold, Targets[i].Rec.Level));
+            ' ', PadRight(CallingName(Targets[i].Rec.Calling), 9),
+            PurseLooks(Targets[i].Rec.Gold, Targets[i].Rec.Level));
   WriteLn;
   TextColor(DarkGray);
   WriteLn('An ambush uses a forest fight. Lose, and they keep YOUR purse.');

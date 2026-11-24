@@ -109,6 +109,7 @@ end;
 procedure VisitTrainer(var P: TPlayer);
 var
   Needed: LongInt;
+  GainHP, GainMP, GainStr: Integer;
 begin
   ClrScr;
   Needed := XPForNextLevel(P.Level);
@@ -127,19 +128,21 @@ begin
   end
   else
   begin
+    LevelUpGains(P, GainHP, GainMP, GainStr);
     Inc(P.Level);
-    P.MaxHP := P.MaxHP + 12;
+    P.MaxHP := P.MaxHP + GainHP;
     P.HP := P.MaxHP;
-    P.MaxMP := P.MaxMP + 6;
+    P.MaxMP := P.MaxMP + GainMP;
     P.MP := P.MaxMP;
-    P.Strength := P.Strength + 3;
+    P.Strength := P.Strength + GainStr;
     SavePlayer(P);
     PostNews(P.Name + ' trained with Master Vane and reached Level ' + IntToStr(P.Level) + '.');
 
     TextColor(Yellow);
     WriteLn('*** LEVEL UP! You are now Level ', P.Level, '! ***');
     TextColor(LightGreen);
-    WriteLn('Max HP +12 (now ', P.MaxHP, ') | Max MP +6 (now ', P.MaxMP, ') | Strength +3 (now ', P.Strength, ')!');
+    WriteLn('Max HP +', GainHP, ' (now ', P.MaxHP, ') | Max MP +', GainMP, ' (now ', P.MaxMP,
+            ') | Strength +', GainStr, ' (now ', P.Strength, ')!');
     TextColor(LightGray);
   end;
   Pause;

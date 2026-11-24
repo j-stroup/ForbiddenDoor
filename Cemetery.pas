@@ -16,7 +16,7 @@ function CryptBattle(var P: TPlayer; const EnemyName: string; EnemyHP, EnemyAtk,
 var
   Action: Char;
   PlayerDmg, EnemyDmg: LongInt;
-  TurnTaken: Boolean;
+  TurnTaken, Crit: Boolean;
 begin
   CryptBattle := False;
   if TodayCondition = cdAllSouls then
@@ -35,8 +35,11 @@ begin
 
     if Action = 'A' then
     begin
-      PlayerDmg := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
+      PlayerDmg := WeaponDamage(P, Crit);
       EnemyHP := EnemyHP - PlayerDmg;
+      TextColor(Yellow);
+      if Crit then
+        Write('CRITICAL! ');
       TextColor(LightGreen);
       WriteLn('You strike ', EnemyName, ' for ', PlayerDmg, ' damage!');
       TextColor(LightGray);
@@ -56,7 +59,7 @@ begin
 
     if TurnTaken and (EnemyHP > 0) then
     begin
-      EnemyDmg := (Random(EnemyAtk) + 1) - ARMORS[P.ArmorIndex].StatBonus;
+      EnemyDmg := (Random(EnemyAtk) + 1) - ArmorValue(P);
       if EnemyDmg < 2 then
         EnemyDmg := 2;
 

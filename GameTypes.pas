@@ -30,6 +30,18 @@ const
   PVP_MIN_LEVEL    = 3;   { Nobody below this level attacks or is attacked }
   PVP_LEVEL_RANGE  = 3;   { May not attack anyone more levels below you than this }
 
+  { Callings. 0 means not chosen yet. }
+  CL_NONE    = 0;
+  CL_FIGHTER = 1;
+  CL_MAGE    = 2;
+  CL_ROGUE   = 3;
+  NR_CALLINGS = 3;
+  FIGHTER_ARMOR_PCT = 125; { Fighters get this much use out of their armor }
+  MAGE_SPELL_PCT    = 160; { Mage attack spells hit this much harder }
+  ROGUE_CRIT_PCT    = 25;  { Chance a Rogue's weapon blow does double damage }
+  ROGUE_GOLD_PCT    = 120; { Rogues pick forest corpses cleaner }
+  MAGE_SIPHON_PCT   = 15;  { Of max MP a Mage draws back from each forest kill }
+
   { A monster MaxLevel meaning it never stops appearing }
   NO_LEVEL_CAP = 32767;
 
@@ -55,6 +67,15 @@ type
     Power: Integer;
     MinLevel: Integer;
     IsHeal: Boolean;
+    Calling: Byte;            { CL_NONE = every calling may use it }
+  end;
+
+  TCalling = record
+    Name: string[10];
+    Key: Char;
+    StartHP, StartMP, StartStr: Integer;
+    GainHP, GainMP, GainStr: Integer;   { Per level trained }
+    Line1, Line2: string[78];
   end;
 
   TPlayer = record
@@ -93,6 +114,7 @@ type
     AmbushesLeft: Integer;    { Street ambushes left today }
     AmbushedDay: LongInt;     { Day this warrior was last ambushed (once a day at most) }
     NightNews: string[78];    { What happened while they slept, shown on waking }
+    Calling: Byte;            { CL_FIGHTER, CL_MAGE, CL_ROGUE; CL_NONE = not chosen }
     { Bumped on every save; detects the same warrior playing on two nodes }
     SaveCount: LongInt;
   end;
@@ -108,14 +130,41 @@ type
   end;
 
 const
-  SKILLS: array[1..7] of TSkill = (
-    (Name: 'Ember Spark';         MPCost: 5;  Power: 14;  MinLevel: 1;  IsHeal: False),
-    (Name: 'Mend Wounds';         MPCost: 8;  Power: 26;  MinLevel: 2;  IsHeal: True),
-    (Name: 'Frost Lance';         MPCost: 12; Power: 34;  MinLevel: 4;  IsHeal: False),
-    (Name: 'Arcane Cleave';       MPCost: 18; Power: 52;  MinLevel: 6;  IsHeal: False),
-    (Name: 'Greater Restoration'; MPCost: 22; Power: 75;  MinLevel: 8;  IsHeal: True),
-    (Name: 'Soul Rupture';        MPCost: 30; Power: 95;  MinLevel: 11; IsHeal: False),
-    (Name: 'Ashen Cataclysm';     MPCost: 45; Power: 155; MinLevel: 14; IsHeal: False)
+  { Skills with Calling CL_NONE are open to everyone; the rest belong to
+    one calling. A warrior sees at most 9 skills (keys 1-9), so keep the
+    shared skills plus any one calling's skills at 9 or fewer. }
+  SKILLS: array[1..13] of TSkill = (
+    (Name: 'Ember Spark';         MPCost: 5;  Power: 14;  MinLevel: 1;  IsHeal: False; Calling: CL_NONE),
+    (Name: 'Mend Wounds';         MPCost: 8;  Power: 26;  MinLevel: 2;  IsHeal: True;  Calling: CL_NONE),
+    (Name: 'Frost Lance';         MPCost: 12; Power: 34;  MinLevel: 4;  IsHeal: False; Calling: CL_NONE),
+    (Name: 'Arcane Cleave';       MPCost: 18; Power: 52;  MinLevel: 6;  IsHeal: False; Calling: CL_NONE),
+    (Name: 'Greater Restoration'; MPCost: 22; Power: 75;  MinLevel: 8;  IsHeal: True;  Calling: CL_NONE),
+    (Name: 'Soul Rupture';        MPCost: 30; Power: 95;  MinLevel: 11; IsHeal: False; Calling: CL_NONE),
+    (Name: 'Ashen Cataclysm';     MPCost: 45; Power: 155; MinLevel: 14; IsHeal: False; Calling: CL_NONE),
+    { Fighter }
+    (Name: 'Shield Bash';         MPCost: 6;  Power: 30;  MinLevel: 3;  IsHeal: False; Calling: CL_FIGHTER),
+    (Name: 'Second Wind';         MPCost: 10; Power: 70;  MinLevel: 9;  IsHeal: True;  Calling: CL_FIGHTER),
+    { Mage }
+    (Name: 'Chain Lightning';     MPCost: 16; Power: 62;  MinLevel: 5;  IsHeal: False; Calling: CL_MAGE),
+    (Name: 'Meteor Fall';         MPCost: 50; Power: 230; MinLevel: 16; IsHeal: False; Calling: CL_MAGE),
+    { Rogue }
+    (Name: 'Poisoned Blade';      MPCost: 8;  Power: 40;  MinLevel: 4;  IsHeal: False; Calling: CL_ROGUE),
+    (Name: 'Shadowstrike';        MPCost: 24; Power: 125; MinLevel: 12; IsHeal: False; Calling: CL_ROGUE)
+  );
+
+  CALLINGS: array[1..NR_CALLINGS] of TCalling = (
+    (Name: 'Fighter'; Key: 'F'; StartHP: 60; StartMP: 12; StartStr: 12;
+     GainHP: 14; GainMP: 3; GainStr: 3;
+     Line1: 'Tough and sturdy. Your armor stops 25% more damage.';
+     Line2: 'Calling skills: Shield Bash, Second Wind.'),
+    (Name: 'Mage'; Key: 'M'; StartHP: 45; StartMP: 34; StartStr: 8;
+     GainHP: 12; GainMP: 12; GainStr: 2;
+     Line1: 'Spells hit 60% harder, and each forest kill restores 15% of your MP.';
+     Line2: 'Calling skills: Chain Lightning, Meteor Fall.'),
+    (Name: 'Rogue'; Key: 'R'; StartHP: 50; StartMP: 20; StartStr: 10;
+     GainHP: 12; GainMP: 6; GainStr: 3;
+     Line1: '1 blow in 4 is a critical for double damage. 20% more forest gold.';
+     Line2: 'One extra street ambush a day. Calling skills: Poisoned Blade, Shadowstrike.')
   );
 
   WEAPONS: array[1..15] of TItem = (
@@ -211,6 +260,16 @@ procedure ShowLeaderboard(const CurrentPlayerName: string);
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
 function PickMonster(Level: Integer): TMonster;
 function IsChampion(const P: TPlayer): Boolean;
+
+{ Callings and the shared combat rules every fight uses }
+function CallingName(C: Byte): string;
+procedure ChooseCalling(var P: TPlayer; NewChar: Boolean);
+procedure LevelUpGains(const P: TPlayer; var HP, MP, Str: Integer);
+function DailyAmbushes(const P: TPlayer): Integer;
+function SkillUsable(const P: TPlayer; i: Integer): Boolean;
+function SkillEffect(const P: TPlayer; i: Integer): LongInt;
+function WeaponDamage(const P: TPlayer; var Crit: Boolean): LongInt;
+function ArmorValue(const P: TPlayer): LongInt;
 
 implementation
 
@@ -562,7 +621,7 @@ begin
     P.AlleyHeat := 0;
     P.CryptState := CRYPT_UNROLLED;
     P.LostInWood := False;
-    P.AmbushesLeft := AMBUSHES_PER_DAY;
+    P.AmbushesLeft := DailyAmbushes(P);
 
     { 5% daily interest, capped per level so balances cannot snowball }
     Interest := P.BankGold div 20;
@@ -648,9 +707,10 @@ begin
   P.WeaponIndex := 1;
   P.ArmorIndex := 1;
   P.CryptState := CRYPT_UNROLLED;
-  P.AmbushesLeft := AMBUSHES_PER_DAY;
   P.LastActive := Now;
   P.SaveCount := 0;
+  ChooseCalling(P, True);
+  P.AmbushesLeft := DailyAmbushes(P);
 
   Assign(F, SAVE_FILE);
 
@@ -912,6 +972,11 @@ begin
           Pause;
           CheckDailyReset(P);
           WakeUp(P);
+          if P.Calling = CL_NONE then
+          begin
+            ChooseCalling(P, False);
+            SavePlayer(P);
+          end;
           LoginPlayer := True;
           Exit;
         end
@@ -958,7 +1023,7 @@ procedure ShowStats(const P: TPlayer);
 begin
   ClrScr;
   TextColor(LightCyan);
-  WriteLn('=== ', P.Name, ' (Level ', P.Level, ') ===');
+  WriteLn('=== ', P.Name, ' (Level ', P.Level, ' ', CallingName(P.Calling), ') ===');
   TextColor(LightGray);
   WriteLn('Experience : ', P.XP, ' / ', XPForNextLevel(P.Level), ' XP');
   WriteLn('Hit Points : ', P.HP, ' / ', P.MaxHP);
@@ -1028,7 +1093,8 @@ end;
 
 function CastCombatSkill(var P: TPlayer; const EnemyName: string; var EnemyHP: LongInt): Boolean;
 var
-  i, Pick: Integer;
+  i, Pick, Shown: Integer;
+  Slot: array[1..9] of Integer;
   EffectAmt: LongInt;
   Choice: Char;
 begin
@@ -1038,17 +1104,27 @@ begin
   WriteLn('--- Combat Skills (MP: ', P.MP, '/', P.MaxMP, ') ---');
   TextColor(LightGray);
 
+  { Only this warrior's skills are listed, numbered 1..Shown }
+  Shown := 0;
   for i := 1 to High(SKILLS) do
-  begin
-    if P.Level >= SKILLS[i].MinLevel then
-      WriteLn('[', i, '] ', SKILLS[i].Name, ' (', SKILLS[i].MPCost, ' MP) - Base Power: ', SKILLS[i].Power)
-    else
+    if SkillUsable(P, i) and (Shown < 9) then
     begin
-      TextColor(DarkGray);
-      WriteLn('[', i, '] Locked (Requires Level ', SKILLS[i].MinLevel, ')');
-      TextColor(LightGray);
+      Inc(Shown);
+      Slot[Shown] := i;
+      if P.Level >= SKILLS[i].MinLevel then
+      begin
+        if SKILLS[i].Calling <> CL_NONE then
+          TextColor(Yellow);
+        WriteLn('[', Shown, '] ', SKILLS[i].Name, ' (', SKILLS[i].MPCost, ' MP) - Base Power: ', SKILLS[i].Power);
+        TextColor(LightGray);
+      end
+      else
+      begin
+        TextColor(DarkGray);
+        WriteLn('[', Shown, '] Locked (Requires Level ', SKILLS[i].MinLevel, ')');
+        TextColor(LightGray);
+      end;
     end;
-  end;
   WriteLn('[0] Cancel');
   Write('Choose skill: ');
 
@@ -1058,8 +1134,9 @@ begin
   if Choice in ['1'..'9'] then
   begin
     Pick := Ord(Choice) - Ord('0');
-    if Pick > High(SKILLS) then
+    if Pick > Shown then
       Exit;
+    Pick := Slot[Pick];
 
     if P.Level < SKILLS[Pick].MinLevel then
     begin
@@ -1076,7 +1153,7 @@ begin
     end;
 
     P.MP := P.MP - SKILLS[Pick].MPCost;
-    EffectAmt := SKILLS[Pick].Power + Random(P.Level * 4 + 1);
+    EffectAmt := SkillEffect(P, Pick);
 
     if SKILLS[Pick].IsHeal then
     begin
@@ -1097,6 +1174,135 @@ begin
     TextColor(LightGray);
     CastCombatSkill := True;
   end;
+end;
+
+function CallingName(C: Byte): string;
+begin
+  if (C >= 1) and (C <= NR_CALLINGS) then
+    CallingName := CALLINGS[C].Name
+  else
+    CallingName := 'Wanderer';
+end;
+
+{ Asks the warrior to pick a calling. A new character also gets that
+  calling's starting stats; an existing one keeps the stats they have. }
+procedure ChooseCalling(var P: TPlayer; NewChar: Boolean);
+var
+  i: Integer;
+  C: Char;
+  Pick: Byte;
+begin
+  ClrScr;
+  TextColor(Yellow);
+  WriteLn('--- Choose Your Calling ---');
+  TextColor(LightGray);
+  WriteLn('Every warrior who comes to South Ridge comes for a reason.');
+  WriteLn('Your calling shapes how you grow, and it cannot be changed.');
+  WriteLn;
+  for i := 1 to NR_CALLINGS do
+  begin
+    TextColor(Yellow);
+    Write('[', CALLINGS[i].Key, '] ');
+    TextColor(LightCyan);
+    Write(PadRight(CALLINGS[i].Name, 8));
+    TextColor(DarkGray);
+    if NewChar then
+      WriteLn('Starts ', CALLINGS[i].StartHP, ' HP, ', CALLINGS[i].StartMP, ' MP, ',
+              CALLINGS[i].StartStr, ' Str. Each level: +', CALLINGS[i].GainHP, ' HP, +',
+              CALLINGS[i].GainMP, ' MP, +', CALLINGS[i].GainStr, ' Str')
+    else
+      WriteLn('Each level: +', CALLINGS[i].GainHP, ' HP, +', CALLINGS[i].GainMP,
+              ' MP, +', CALLINGS[i].GainStr, ' Str');
+    TextColor(LightGray);
+    WriteLn('    ', CALLINGS[i].Line1);
+    WriteLn('    ', CALLINGS[i].Line2);
+    WriteLn;
+  end;
+
+  Pick := CL_NONE;
+  repeat
+    Write('Your calling: ');
+    C := UpCase(GetKey);
+    WriteLn(C);
+    for i := 1 to NR_CALLINGS do
+      if C = CALLINGS[i].Key then
+        Pick := i;
+  until Pick <> CL_NONE;
+
+  P.Calling := Pick;
+  if NewChar then
+  begin
+    P.MaxHP := CALLINGS[Pick].StartHP;
+    P.HP := P.MaxHP;
+    P.MaxMP := CALLINGS[Pick].StartMP;
+    P.MP := P.MaxMP;
+    P.Strength := CALLINGS[Pick].StartStr;
+  end;
+  TextColor(LightGreen);
+  WriteLn('You walk on as a ', CALLINGS[Pick].Name, '.');
+  TextColor(LightGray);
+end;
+
+procedure LevelUpGains(const P: TPlayer; var HP, MP, Str: Integer);
+begin
+  if (P.Calling >= 1) and (P.Calling <= NR_CALLINGS) then
+  begin
+    HP := CALLINGS[P.Calling].GainHP;
+    MP := CALLINGS[P.Calling].GainMP;
+    Str := CALLINGS[P.Calling].GainStr;
+  end
+  else
+  begin
+    HP := 12;
+    MP := 6;
+    Str := 3;
+  end;
+end;
+
+function DailyAmbushes(const P: TPlayer): Integer;
+begin
+  if P.Calling = CL_ROGUE then
+    DailyAmbushes := AMBUSHES_PER_DAY + 1
+  else
+    DailyAmbushes := AMBUSHES_PER_DAY;
+end;
+
+function SkillUsable(const P: TPlayer; i: Integer): Boolean;
+begin
+  SkillUsable := (SKILLS[i].Calling = CL_NONE) or (SKILLS[i].Calling = P.Calling);
+end;
+
+{ Damage (or healing) from one cast of skill i }
+function SkillEffect(const P: TPlayer; i: Integer): LongInt;
+var
+  E: LongInt;
+begin
+  E := SKILLS[i].Power + Random(P.Level * 4 + 1);
+  if (P.Calling = CL_MAGE) and (not SKILLS[i].IsHeal) then
+    E := (E * MAGE_SPELL_PCT) div 100;
+  SkillEffect := E;
+end;
+
+{ One weapon blow, before the target's armor. Crit is set on a Rogue's
+  critical hit. }
+function WeaponDamage(const P: TPlayer; var Crit: Boolean): LongInt;
+var
+  D: LongInt;
+begin
+  D := (P.Strength div 2) + Random(P.Strength) + WEAPONS[P.WeaponIndex].StatBonus;
+  Crit := (P.Calling = CL_ROGUE) and (Random(100) < ROGUE_CRIT_PCT);
+  if Crit then
+    D := D * 2;
+  WeaponDamage := D;
+end;
+
+{ How much damage the warrior's armor soaks from each ordinary blow }
+function ArmorValue(const P: TPlayer): LongInt;
+begin
+  if P.Calling = CL_FIGHTER then
+    ArmorValue := (LongInt(ARMORS[P.ArmorIndex].StatBonus) * FIGHTER_ARMOR_PCT) div 100
+  else
+    ArmorValue := ARMORS[P.ArmorIndex].StatBonus;
 end;
 
 end.
