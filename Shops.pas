@@ -4,7 +4,7 @@ unit Shops;
 interface
 
 uses
-  Crt, SysUtils, GameTypes, Town;
+  Crt, SysUtils, GameTypes, Town, Holdings;
 
 procedure VisitBank(var P: TPlayer);
 procedure VisitTrainer(var P: TPlayer);
@@ -154,6 +154,7 @@ begin
   TextColor(LightCyan);
   WriteLn('--- The Blacksmith (Your Gold: ', P.Gold, ') ---');
   TextColor(LightGray);
+  PrintProprietor(PROP_SMITH);
   FestivalBanner;
   WriteLn('Equipped: ', WEAPONS[P.WeaponIndex].Name, ' (+', WEAPONS[P.WeaponIndex].StatBonus, ' Atk)');
   WriteLn;
@@ -179,6 +180,7 @@ begin
       P.Gold := P.Gold - ShopPrice(WEAPONS[Pick].Cost);
       P.WeaponIndex := Pick;
       SavePlayer(P);
+      ShopTakings(PROP_SMITH, P.Name, ShopPrice(WEAPONS[Pick].Cost));
       if Pick >= 10 then
         PostNews(P.Name + ' now wields the ' + WEAPONS[Pick].Name + '.');
       TextColor(LightGreen);
@@ -198,6 +200,7 @@ begin
   TextColor(LightCyan);
   WriteLn('--- The Armorer (Your Gold: ', P.Gold, ') ---');
   TextColor(LightGray);
+  PrintProprietor(PROP_ARMOR);
   FestivalBanner;
   WriteLn('Equipped: ', ARMORS[P.ArmorIndex].Name, ' (+', ARMORS[P.ArmorIndex].StatBonus, ' Def)');
   WriteLn;
@@ -223,6 +226,7 @@ begin
       P.Gold := P.Gold - ShopPrice(ARMORS[Pick].Cost);
       P.ArmorIndex := Pick;
       SavePlayer(P);
+      ShopTakings(PROP_ARMOR, P.Name, ShopPrice(ARMORS[Pick].Cost));
       if Pick >= 9 then
         PostNews(P.Name + ' now wears the ' + ARMORS[Pick].Name + '.');
       TextColor(LightGreen);
@@ -262,6 +266,7 @@ begin
   P.Gold := P.Gold - Cost;
   P.InnPaidDay := Trunc(Date);
   SavePlayer(P);
+  ShopTakings(PROP_INN, P.Name, Cost);
   WriteLn('You hand over ', Cost, ' gold and the innkeeper gives you a heavy iron key.');
 end;
 
@@ -281,6 +286,7 @@ begin
   TextColor(Yellow);
   WriteLn('--- The South Ridge Inn ---');
   TextColor(LightGray);
+  PrintProprietor(PROP_INN);
   if TodayCondition = cdFestival then
     WriteLn('Festival rates tonight: rooms are half price!');
   WriteLn('Server Time: ', FormatDateTime('hh:nn am/pm', Now), ' (Daily limits reset at midnight)');
@@ -333,6 +339,7 @@ begin
     TextColor(LightGreen);
     WriteLn('--- Granny Wicks'' Healer''s Hut ---');
     TextColor(LightGray);
+    PrintProprietor(PROP_HEALER);
     WriteLn('Bundles of drying herbs hang from the rafters. A kettle mutters on the coals.');
     WriteLn('Granny Wicks squints at you. "Let''s see the damage, then."');
     WriteLn;
@@ -377,6 +384,7 @@ begin
               P.Gold := P.Gold - Cost;
               P.HP := P.HP + Amount;
               SavePlayer(P);
+              ShopTakings(PROP_HEALER, P.Name, Cost);
               TextColor(LightGreen);
               WriteLn('She packs your wounds with something that smells of moss and vinegar.');
               WriteLn('+', Amount, ' HP for ', Cost, ' gold (HP: ', P.HP, '/', P.MaxHP, ').');
@@ -403,6 +411,7 @@ begin
               P.Gold := P.Gold - Cost;
               P.MP := P.MP + Amount;
               SavePlayer(P);
+              ShopTakings(PROP_HEALER, P.Name, Cost);
               TextColor(LightCyan);
               WriteLn('The tea is bitter and blue. Your thoughts sharpen.');
               WriteLn('+', Amount, ' MP for ', Cost, ' gold (MP: ', P.MP, '/', P.MaxMP, ').');

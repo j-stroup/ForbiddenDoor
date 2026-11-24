@@ -2,7 +2,7 @@
 program AshenWyrm;
 
 uses
-  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys, ShiftingWood, Streets;
+  Crt, SysUtils, GameTypes, Town, Shops, Combat, Tavern, Cemetery, Footbridge, Chapel, Alleys, ShiftingWood, Streets, Holdings;
 
 var
   Hero: TPlayer;
@@ -209,7 +209,7 @@ begin
   WriteLn(' |');
   WriteLn('+------------------------------------+------------------------------------+');
 
-  { 9 Rows (17 Menu Options) }
+  { 9 Rows (18 Menu Options) }
   PrintDualRow('W', 'Weapon Shop',             'F', 'Enter the Forest (Hunt)');
   PrintDualRow('A', 'Armor Shop',              'G', 'Old Cemetery (Crypt)');
   if (Hero.Level >= WOOD_MIN_LEVEL) and Hero.WoodSeen then
@@ -222,13 +222,13 @@ begin
   PrintDualRow('I', 'Inn (Sleep Safely)',      'V', 'View Warrior Stats');
   PrintDualRow('H', 'Olde Hallowed Tavern',    'R', 'Hall of Fame (Rankings)');
   PrintDualRow('P', 'Parish Chapel',           'Q', 'Save & Quit');
-  PrintDualRow('N', 'Town Crier (Daily News)', ' ', '');
+  PrintDualRow('N', 'Town Crier (Daily News)', 'O', 'Town Hall (Buy a Business)');
 
   TextColor(DarkGray);
   WriteLn('+====================================+====================================+');
   WriteLn;
   TextColor(LightGray);
-  Write('Command [W,A,T,B,L,I,H,P,N / F,G,C,D,S,V,R,Q]: ');
+  Write('Command [W,A,T,B,L,I,H,P,N / F,G,C,D,S,O,V,R,Q]: ');
 
   Choice := UpCase(GetKey);
   WriteLn(Choice);
@@ -254,6 +254,7 @@ begin
     'V': ShowStats(Hero);
     'R': ShowLeaderboard(Hero.Name);
     'N': ShowCrier;
+    'O': VisitTownHall(Hero);
     '~': begin
            if not Hero.SysOpDone then
            begin
@@ -279,6 +280,7 @@ begin
 
   if not LoginPlayer(Hero) then
     Halt;
+  CollectHoldings(Hero);
 
   if not Hero.LostInWood then
   begin

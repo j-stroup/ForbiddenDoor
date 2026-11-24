@@ -4,7 +4,7 @@ unit Tavern;
 interface
 
 uses
-  Crt, SysUtils, GameTypes, Town;
+  Crt, SysUtils, GameTypes, Town, Holdings;
 
 procedure VisitTavern(var P: TPlayer);
 
@@ -249,6 +249,7 @@ begin
     TextColor(Yellow);
     WriteLn('--- The Olde Hallowed Tavern ---');
     TextColor(LightGray);
+    PrintProprietor(PROP_TAVERN);
     WriteLn('Smoke hangs thick from the rafters. Dice clatter in the corner.');
     WriteLn;
     if P.TavernDone then
@@ -277,6 +278,7 @@ begin
                if P.HP < P.MaxHP then
                  Inc(P.HP);
                SavePlayer(P);
+               ShopTakings(PROP_TAVERN, P.Name, 5);
                WriteLn('You down a frothy mug of dark ale. Warmth spreads through your chest (+1 HP).');
              end;
              Pause;
