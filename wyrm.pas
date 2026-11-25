@@ -63,6 +63,8 @@ begin
   else
     WriteLn('Champion of the Ridge: none. The Ashen Wyrm has never been bested.');
   WriteLn;
+  PrintWantedPosters(5);
+  WriteLn;
   PrintNews(12);
   Pause;
 end;
@@ -79,6 +81,11 @@ begin
   begin
     TextColor(LightGreen);
     WriteLn('You head up to the room you paid for at the Inn and bolt the door.');
+    if IsWanted(Hero) then
+    begin
+      TextColor(LightRed);
+      WriteLn('With a bounty on your head, a bolted door will not keep the hunters out.');
+    end;
     TextColor(LightGray);
     SavePlayerAsleep(Hero, True);
     ChooseBed := True;
@@ -195,6 +202,15 @@ begin
     Write(PadRight('Champion of the Ridge: ' + Champ, 71));
   TextColor(DarkGray);
   WriteLn(' |');
+  if IsWanted(Hero) then
+  begin
+    Write('| ');
+    TextColor(LightRed);
+    Write(PadRight('WANTED: a bounty of ' + IntToStr(BountyFor(Hero)) +
+                   ' gold is on your head (Chapel: penance)', 71));
+    TextColor(DarkGray);
+    WriteLn(' |');
+  end;
   WriteLn('+====================================+====================================+');
 
   { Column Headers }

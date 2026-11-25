@@ -321,6 +321,46 @@ begin
   Pause;
 end;
 
+{ A passed-out drunk, and a purse nobody is watching. Once a day. }
+procedure RollDrunk(var P: TPlayer);
+var
+  Amt: LongInt;
+begin
+  WriteLn;
+  if P.DrunkRolledDay = Trunc(Date) then
+  begin
+    WriteLn('The drunks have all crawled home, or are watching you back.');
+    Pause;
+    Exit;
+  end;
+  P.DrunkRolledDay := Trunc(Date);
+  if P.AlleyHeat < 50 then
+    P.AlleyHeat := P.AlleyHeat + 2;
+
+  WriteLn('A man in a wine-stained coat is snoring against a rain barrel, purse in his lap.');
+  if Random(100) < 70 then
+  begin
+    Amt := (12 + Random(19)) * LongInt(P.Level);
+    AddGold(P.Gold, Amt);
+    TextColor(Yellow);
+    WriteLn('You lift the purse without a sound: ', Amt, ' gold.');
+  end
+  else
+  begin
+    Amt := 5 + P.Level * 2;
+    P.HP := P.HP - Amt;
+    if P.HP < 1 then
+      P.HP := 1;
+    TextColor(LightRed);
+    WriteLn('He is not as drunk as he looks. A fist the size of a ham catches your jaw (-', Amt, ' HP).');
+    PostNews(P.Name + ' was seen running from the back alleys with a split lip.');
+  end;
+  AddInfamy(P, DEED_ROLL_DRUNK);
+  TextColor(LightGray);
+  SavePlayer(P);
+  Pause;
+end;
+
 procedure VisitAlleys(var P: TPlayer);
 var
   Choice: Char;
@@ -341,6 +381,7 @@ begin
     WriteLn('[S] Scavenge the Alleys (Search crates & shadows - Heat: ', P.AlleyHeat, ')');
     WriteLn('[G] Gamble at Bone Dice (High-risk street wager)');
     WriteLn('[V] Buy a Murky Alley Vial (', TonicCost, ' gold - Wild mystery brew)');
+    WriteLn('[R] Roll a Passed-Out Drunk (An evil deed)');
     WriteLn('[L] Return to Main Street');
     WriteLn;
     Write('Your choice: ');
@@ -353,6 +394,7 @@ begin
       'S': ScavengeAlley(P);
       'G': PlayAlleyDice(P);
       'V': DrinkAlleyVial(P, TonicCost);
+      'R': RollDrunk(P);
     end;
   until Choice = 'L';
 end;

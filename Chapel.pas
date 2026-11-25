@@ -92,6 +92,53 @@ begin
   Pause;
 end;
 
+{ Pay penance to wash away infamy, a point at a time }
+procedure DoPenance(var P: TPlayer);
+var
+  Rate, Points, Afford: LongInt;
+  WasWanted: Boolean;
+begin
+  Rate := PENANCE_PER_DEED * LongInt(P.Level);
+  if TodayCondition = cdHolyDay then
+    Rate := Rate div 2;
+  if Rate < 1 then
+    Rate := 1;
+  WasWanted := IsWanted(P);
+
+  TextColor(LightCyan);
+  WriteLn('The old priest listens without a word, then names a penance:');
+  WriteLn(Rate, ' gold for the poor, for each sin you would have forgiven.');
+  TextColor(LightGray);
+  WriteLn('Infamy: ', P.Infamy, '   Gold on hand: ', P.Gold);
+  Afford := P.Gold div Rate;
+  if Afford <= 0 then
+  begin
+    WriteLn('"Come back when you can pay it, child."');
+    Pause;
+    Exit;
+  end;
+  if Afford > P.Infamy then
+    Afford := P.Infamy;
+  Write('How many sins? (up to ', Afford, ', blank for none): ');
+  if (not ReadNumber(2, Points)) or (Points <= 0) then
+    Exit;
+  if Points > Afford then
+    Points := Afford;
+
+  P.Gold := P.Gold - Points * Rate;
+  P.Infamy := P.Infamy - Points;
+  SavePlayer(P);
+  TextColor(LightGreen);
+  WriteLn('You pay ', Points * Rate, ' gold. Infamy is now ', P.Infamy, '.');
+  if WasWanted and (not IsWanted(P)) then
+  begin
+    WriteLn('Across the square, the Sheriff tears your poster off the Town Hall door.');
+    PostNews(P.Name + ' did penance at the chapel. The Sheriff took down the wanted poster.');
+  end;
+  TextColor(LightGray);
+  Pause;
+end;
+
 procedure VisitChapel(var P: TPlayer);
 var
   Choice: Char;
@@ -126,6 +173,8 @@ begin
     WriteLn('[T] Light a Candle & Tithe (', TitheCost, ' gold - Seek a blessing)');
     WriteLn('[M] Quiet Meditation (Spend ', MedCost, ' MP - Unpredictable trance)');
     WriteLn('[B] Inspect the Wooden Poor Box');
+    if P.Infamy > 0 then
+      WriteLn('[C] Confess Your Sins (Infamy: ', P.Infamy, ')');
     WriteLn('[L] Leave Chapel');
     WriteLn;
     Write('Your choice: ');
@@ -136,6 +185,8 @@ begin
 
     case Choice of
       'K': SecretConfessional(P); { Hidden Exitilus-style Easter egg }
+      'C': if P.Infamy > 0 then
+             DoPenance(P);
 
       'T': begin
              if P.Gold < TitheCost then
@@ -341,6 +392,7 @@ begin
                      WriteLn('The box is completely empty save for a dead moth and dust.');
                    end;
                  end;
+                 AddInfamy(P, DEED_POOR_BOX);
                  TextColor(LightGray);
                  SavePlayer(P);
                  Pause;

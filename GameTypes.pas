@@ -42,6 +42,19 @@ const
   ROGUE_GOLD_PCT    = 120; { Rogues pick forest corpses cleaner }
   MAGE_SIPHON_PCT   = 15;  { Of max MP a Mage draws back from each forest kill }
 
+  { Infamy: evil deeds add up. At WANTED_AT the Sheriff posts a bounty and
+    the outlaw can be hunted while asleep, even at the Inn. Infamy fades by
+    one a day until then; once wanted, only capture or penance clears it. }
+  WANTED_AT        = 10;
+  MAX_INFAMY       = 99;
+  DEED_POOR_BOX    = 2;   { Stealing from the chapel poor box }
+  DEED_BULLY       = 3;   { Ambushing someone far below your level }
+  DEED_ROLL_DRUNK  = 1;   { Robbing a passed-out drunk in the alleys }
+  BOUNTY_PER_LEVEL = 300; { Paid by the Council, per outlaw level }
+  BOUNTY_PER_DEED  = 100; { Paid by the Council, per point of infamy }
+  BOUNTY_SEIZE_PCT = 25;  { Of the outlaw's vault, seized and added to the bounty }
+  PENANCE_PER_DEED = 75;  { Gold per level to atone for one point at the chapel }
+
   { A monster MaxLevel meaning it never stops appearing }
   NO_LEVEL_CAP = 32767;
 
@@ -115,6 +128,8 @@ type
     AmbushedDay: LongInt;     { Day this warrior was last ambushed (once a day at most) }
     NightNews: string[78];    { What happened while they slept, shown on waking }
     Calling: Byte;            { CL_FIGHTER, CL_MAGE, CL_ROGUE; CL_NONE = not chosen }
+    Infamy: Integer;          { Evil deeds; WANTED_AT or more puts a bounty on them }
+    DrunkRolledDay: LongInt;  { Day this warrior last robbed a drunk in the alleys }
     { Bumped on every save; detects the same warrior playing on two nodes }
     SaveCount: LongInt;
   end;
@@ -270,6 +285,12 @@ function SkillUsable(const P: TPlayer; i: Integer): Boolean;
 function SkillEffect(const P: TPlayer; i: Integer): LongInt;
 function WeaponDamage(const P: TPlayer; var Crit: Boolean): LongInt;
 function ArmorValue(const P: TPlayer): LongInt;
+
+{ Infamy and bounties }
+function IsWanted(const R: TPlayer): Boolean;
+function BountyFor(const R: TPlayer): LongInt;
+function SeizedFor(const R: TPlayer): LongInt;
+procedure AddInfamy(var P: TPlayer; Points: Integer);
 
 implementation
 
@@ -622,6 +643,9 @@ begin
     P.CryptState := CRYPT_UNROLLED;
     P.LostInWood := False;
     P.AmbushesLeft := DailyAmbushes(P);
+    { Old sins fade, but a posted bounty does not }
+    if (P.Infamy > 0) and (not IsWanted(P)) then
+      Dec(P.Infamy);
 
     { 5% daily interest, capped per level so balances cannot snowball }
     Interest := P.BankGold div 20;
@@ -1032,6 +1056,14 @@ begin
   WriteLn('Gold (Hand): ', P.Gold);
   WriteLn('Gold (Bank): ', P.BankGold);
   WriteLn('Fights Left: ', P.FightsLeft);
+  if IsWanted(P) then
+  begin
+    TextColor(LightRed);
+    WriteLn('Infamy     : ', P.Infamy, ' - WANTED, bounty ', BountyFor(P), ' gold');
+    TextColor(LightGray);
+  end
+  else
+    WriteLn('Infamy     : ', P.Infamy, ' / ', WANTED_AT, ' (a bounty is posted at ', WANTED_AT, ')');
   WriteLn('Weapon     : ', WEAPONS[P.WeaponIndex].Name, ' (+', WEAPONS[P.WeaponIndex].StatBonus, ' Atk)');
   WriteLn('Armor      : ', ARMORS[P.ArmorIndex].Name, ' (+', ARMORS[P.ArmorIndex].StatBonus, ' Def)');
   Pause;
@@ -1303,6 +1335,56 @@ begin
     ArmorValue := (LongInt(ARMORS[P.ArmorIndex].StatBonus) * FIGHTER_ARMOR_PCT) div 100
   else
     ArmorValue := ARMORS[P.ArmorIndex].StatBonus;
+end;
+
+function IsWanted(const R: TPlayer): Boolean;
+begin
+  IsWanted := R.Infamy >= WANTED_AT;
+end;
+
+{ Part of the outlaw's vault the Sheriff seizes when they are brought in }
+function SeizedFor(const R: TPlayer): LongInt;
+begin
+  if R.BankGold <= 0 then
+    SeizedFor := 0
+  else
+    SeizedFor := (R.BankGold div 100) * BOUNTY_SEIZE_PCT;
+end;
+
+{ What a bounty hunter is paid for bringing this outlaw in (not counting
+  the gold in their pocket) }
+function BountyFor(const R: TPlayer): LongInt;
+begin
+  BountyFor := BOUNTY_PER_LEVEL * LongInt(R.Level) + BOUNTY_PER_DEED * LongInt(R.Infamy) +
+               SeizedFor(R);
+end;
+
+{ Records an evil deed. The caller saves the warrior. }
+procedure AddInfamy(var P: TPlayer; Points: Integer);
+var
+  WasWanted: Boolean;
+begin
+  WasWanted := IsWanted(P);
+  P.Infamy := P.Infamy + Points;
+  if P.Infamy > MAX_INFAMY then
+    P.Infamy := MAX_INFAMY;
+  TextColor(DarkGray);
+  if IsWanted(P) then
+    WriteLn('(An evil deed. Infamy +', Points, ': ', P.Infamy, ' - you are WANTED.)')
+  else
+    WriteLn('(An evil deed. Infamy +', Points, ': ', P.Infamy, ' of ', WANTED_AT,
+            ' before a bounty is posted.)');
+  if IsWanted(P) and (not WasWanted) then
+  begin
+    TextColor(LightRed);
+    WriteLn;
+    WriteLn('*** The Sheriff nails a fresh poster to the Town Hall door. It has your face on it. ***');
+    WriteLn('A bounty of ', BountyFor(P), ' gold is on your head. While you sleep, no lock');
+    WriteLn('and no innkeeper will keep the bounty hunters out.');
+    PostNews('WANTED: The Sheriff has posted a bounty of ' + IntToStr(BountyFor(P)) +
+             ' gold on ' + P.Name + '.');
+  end;
+  TextColor(LightGray);
 end;
 
 end.

@@ -7,7 +7,11 @@ unit Streets;
   and full HP with their own gear, however hurt they went to bed, and the
   fight never changes their real HP. The winner takes the loser's
   pocket gold.
-  Each warrior can be ambushed once a day at most. }
+  Each warrior can be ambushed once a day at most.
+
+  Wanted outlaws (see Infamy in GameTypes) are the exception: bounty
+  hunters may track them down wherever they sleep, even at the Inn, at
+  any level, and collect the Sheriff's bounty. }
 
 interface
 
@@ -15,6 +19,9 @@ uses
   Crt, SysUtils, GameTypes, Town;
 
 procedure ProwlStreets(var P: TPlayer);
+procedure PrintWantedPosters(MaxRows: Integer);
+function CanAmbush(const P, R: TPlayer): Boolean;
+function IsBullying(const P, R: TPlayer): Boolean;
 
 implementation
 
@@ -43,17 +50,56 @@ begin
     PurseLooks := 'a FAT purse';
 end;
 
-{ Can this attacker jump this sleeper right now? }
+{ Can this attacker jump this sleeper right now? A wanted outlaw can be
+  hunted wherever they sleep, at any level, as often as hunters try.
+  Anyone else must be sleeping in the street and not jumped yet today. }
 function CanAmbush(const P, R: TPlayer): Boolean;
 begin
   CanAmbush := (not SameName(P.Name, R.Name)) and
                (R.Name <> '') and
-               (R.Level >= PVP_MIN_LEVEL) and
-               (R.Level >= P.Level - PVP_LEVEL_RANGE) and
-               (not R.AsleepAtInn) and
                (not R.LostInWood) and
-               (R.AmbushedDay <> Trunc(Date)) and
-               (not IsAwake(R));
+               (not IsAwake(R)) and
+               (IsWanted(R) or
+                ((R.Level >= PVP_MIN_LEVEL) and
+                 (not R.AsleepAtInn) and
+                 (R.AmbushedDay <> Trunc(Date))));
+end;
+
+{ Jumping someone far below your own level is allowed, but it is an evil
+  deed. Hunting a wanted outlaw never is. }
+function IsBullying(const P, R: TPlayer): Boolean;
+begin
+  IsBullying := (not IsWanted(R)) and (R.Level < P.Level - PVP_LEVEL_RANGE);
+end;
+
+{ The wanted posters on the Town Hall door, for the Crier }
+procedure PrintWantedPosters(MaxRows: Integer);
+var
+  i, Total: LongInt;
+  Shown: Integer;
+  R: TPlayer;
+begin
+  Shown := 0;
+  Total := PlayerCount;
+  i := 0;
+  while (i < Total) and (Shown < MaxRows) do
+  begin
+    if ReadPlayerAt(i, R) and (R.Name <> '') and IsWanted(R) then
+    begin
+      if Shown = 0 then
+      begin
+        TextColor(LightRed);
+        WriteLn('WANTED by the Sheriff of South Ridge:');
+      end;
+      Inc(Shown);
+      TextColor(LightRed);
+      Write('  ', PadRight(R.Name, 30));
+      TextColor(LightGray);
+      WriteLn(' Lvl ', R.Level:3, '  ', CallingName(R.Calling):8, '   bounty ', BountyFor(R), ' gold');
+    end;
+    Inc(i);
+  end;
+  TextColor(LightGray);
 end;
 
 function GatherTargets(const P: TPlayer): Integer;
@@ -148,8 +194,8 @@ end;
 procedure Ambush(var P: TPlayer; const T: TTarget);
 var
   V, Fresh: TPlayer;
-  Won, Fled: Boolean;
-  Take, XPGain: LongInt;
+  Won, Fled, Hunt: Boolean;
+  Take, XPGain, Bounty, Seized: LongInt;
 begin
   { Re-read: the sleeper may have woken or been jumped by someone else }
   if (not ReadPlayerAt(T.Index, Fresh)) or (not CanAmbush(P, Fresh)) then
@@ -159,14 +205,22 @@ begin
     Exit;
   end;
   V := Fresh;
-
-  Dec(P.FightsLeft);
-  Dec(P.AmbushesLeft);
-  SavePlayer(P);
+  Hunt := IsWanted(V);
 
   ClrScr;
+  Dec(P.FightsLeft);
+  Dec(P.AmbushesLeft);
+  if IsBullying(P, V) then
+    AddInfamy(P, DEED_BULLY);
+  SavePlayer(P);
+
   TextColor(LightRed);
-  WriteLn('You find ', V.Name, ' (Level ', V.Level, ') curled in a doorway, snoring.');
+  if Hunt and V.AsleepAtInn then
+    WriteLn('You slip a coin to the night porter and climb the Inn stairs to ', V.Name, '''s room.')
+  else if Hunt then
+    WriteLn('You track the outlaw ', V.Name, ' (Level ', V.Level, ') to a doorway, snoring.')
+  else
+    WriteLn('You find ', V.Name, ' (Level ', V.Level, ') curled in a doorway, snoring.');
   WriteLn('You draw your ', WEAPONS[P.WeaponIndex].Name, '. Their eyes snap open and they');
   WriteLn('are on their feet in an instant, wide awake and ready.');
   TextColor(LightGray);
@@ -183,6 +237,34 @@ begin
     V.NightNews := P.Name + ' jumped you in the street, then ran off.';
     WriteSleeperAt(T.Index, Fresh, V);
     PostNews(P.Name + ' jumped ' + V.Name + ' in the street and ran away.');
+  end
+  else if Won and Hunt then
+  begin
+    { Bounty collected: the outlaw's purse, the Council's reward, and a
+      share of their vault. Their slate is wiped clean. }
+    Take := V.Gold;
+    Bounty := BountyFor(V);
+    Seized := SeizedFor(V);
+    XPGain := 40 * LongInt(V.Level);
+    V.Gold := 0;
+    V.BankGold := V.BankGold - Seized;
+    V.Infamy := 0;
+    V.NightNews := P.Name + ' dragged you to the Sheriff. Bounty paid; your slate is clean.';
+    if WriteSleeperAt(T.Index, Fresh, V) then
+    begin
+      AddGold(P.Gold, Take);
+      AddGold(P.Gold, Bounty);
+      P.XP := P.XP + XPGain;
+      TextColor(Yellow);
+      WriteLn('You haul ', V.Name, ' to the Sheriff in irons.');
+      WriteLn('Their purse: ', Take, ' gold. The bounty: ', Bounty, ' gold (', Seized,
+              ' of it seized from their vault). And ', XPGain, ' XP.');
+      TextColor(LightGray);
+      PostNews('BOUNTY COLLECTED: ' + P.Name + ' brought in the outlaw ' + V.Name +
+               ' for ' + IntToStr(Bounty) + ' gold.');
+    end
+    else
+      WriteLn(V.Name, ' slips the irons, goes over a wall, and is gone.');
   end
   else if Won then
   begin
@@ -232,6 +314,7 @@ procedure ProwlStreets(var P: TPlayer);
 var
   Count, i, Pick: Integer;
   Num: LongInt;
+  Choice: Char;
 begin
   ClrScr;
   TextColor(LightRed);
@@ -264,18 +347,32 @@ begin
   if Count = 0 then
   begin
     WriteLn('Every doorway is empty tonight. Everyone worth robbing is awake, at the');
-    WriteLn('Inn, or already been robbed today.');
+    WriteLn('Inn, or already been robbed today. No outlaws are asleep either.');
     Pause;
     Exit;
   end;
 
   TextColor(LightCyan);
-  WriteLn('Sleeping in the street (ambushes left today: ', P.AmbushesLeft, '):');
+  WriteLn('Asleep and within reach (ambushes left today: ', P.AmbushesLeft, '):');
   TextColor(LightGray);
   for i := 1 to Count do
+  begin
     WriteLn('  [', i:2, '] ', PadRight(Targets[i].Rec.Name, 30), ' Lvl ', Targets[i].Rec.Level:3,
             ' ', PadRight(CallingName(Targets[i].Rec.Calling), 9),
             PurseLooks(Targets[i].Rec.Gold, Targets[i].Rec.Level));
+    if IsWanted(Targets[i].Rec) then
+    begin
+      TextColor(LightRed);
+      WriteLn('         WANTED - bounty ', BountyFor(Targets[i].Rec), ' gold');
+      TextColor(LightGray);
+    end
+    else if IsBullying(P, Targets[i].Rec) then
+    begin
+      TextColor(DarkGray);
+      WriteLn('         far beneath you - jumping them is an evil deed');
+      TextColor(LightGray);
+    end;
+  end;
   WriteLn;
   TextColor(DarkGray);
   WriteLn('An ambush uses a forest fight. Lose, and they keep YOUR purse.');
@@ -286,6 +383,15 @@ begin
   Pick := Num;
   if (Pick < 1) or (Pick > Count) then
     Exit;
+  if IsBullying(P, Targets[Pick].Rec) then
+  begin
+    Write('Picking on someone that far beneath you is an evil deed (+', DEED_BULLY,
+          ' infamy). Do it anyway? [Y/N]: ');
+    Choice := UpCase(GetKey);
+    WriteLn(Choice);
+    if Choice <> 'Y' then
+      Exit;
+  end;
   Ambush(P, Targets[Pick]);
 end;
 
